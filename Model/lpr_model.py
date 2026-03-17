@@ -22,7 +22,7 @@ from paddleocr import PaddleOCR
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 MODEL_PATH   = 'Model/yolov11x-license-plate.pt'
-IMAGE_PATH   = 'Model/Dataset/00e8e5e79255536f_jpg.rf.04e24b86d0c062773ed207e247043b8c.jpg'
+IMAGE_PATH   = 'Model/Dataset/generic_1.jpg'
 RESIZE_WIDTH = 800
 PAD          = 5
 DEBUG_DIR    = 'Debug'
