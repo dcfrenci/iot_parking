@@ -1,0 +1,23 @@
+# ultralytics==8.4.23
+# paddleocr==3.4.0
+# paddlepaddle==3.2.2
+
+# License Plate Detection + OCR Pipeline
+# Install with: pip install -r requirements.txt
+ 
+# YOLO detection
+ultralytics
+ 
+# OCR engines
+easyocr
+paddleocr
+ 
+# PaddlePaddle backend — use the CPU build to avoid oneDNN issues
+# For GPU support replace with: paddlepaddle-gpu
+paddlepaddle==3.2.2
+ 
+# Computer vision & numerical
+opencv-python
+numpy
+matplotlib
+ 
