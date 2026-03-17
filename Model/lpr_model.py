@@ -62,14 +62,12 @@ def preprocess(crop_bgr: np.ndarray, resize_width: int = RESIZE_WIDTH):
     """
     ratio   = resize_width / float(crop_bgr.shape[1])
     height  = int(crop_bgr.shape[0] * ratio)
-    resized = cv2.resize(crop_bgr, (resize_width, height),
-                         interpolation=cv2.INTER_CUBIC)
+    resized = cv2.resize(crop_bgr, (resize_width, height), interpolation=cv2.INTER_CUBIC)
 
     gray    = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    _, thresh_otsu = cv2.threshold(blurred, 0, 255,
-                                   cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _, thresh_otsu = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     kernel      = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     thresh_otsu = cv2.morphologyEx(thresh_otsu, cv2.MORPH_OPEN, kernel)
@@ -90,8 +88,7 @@ def ensure_bgr(image: np.ndarray) -> np.ndarray:
     return image
 
 
-def save_debug(gray: np.ndarray, thresh_otsu: np.ndarray,
-               thresh_adapt: np.ndarray, idx: int):
+def save_debug(gray: np.ndarray, thresh_otsu: np.ndarray, thresh_adapt: np.ndarray, idx: int):
     """Save side-by-side debug image for one detected plate."""
     os.makedirs(DEBUG_DIR, exist_ok=True)
     comparison = np.hstack([gray, thresh_otsu, thresh_adapt])
@@ -176,7 +173,7 @@ def process_image(image_path: str):
 
             # ── 1. Crop ──────────────────────────────────────────────────────
             x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
-            h, w            = img.shape[:2]
+            h, w           = img.shape[:2]
 
             y1_p = max(0, y1 - PAD);  y2_p = min(h, y2 + PAD)
             x1_p = max(0, x1 - PAD);  x2_p = min(w, x2 + PAD)
@@ -217,8 +214,7 @@ def process_image(image_path: str):
             # Fall back to best EasyOCR result if Paddle returned nothing
             label = best_paddle if best_paddle else easy_text_otsu
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(img, label, (x1, y1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
         # ── Save annotated frame ──────────────────────────────────────────────
         annotated_path = os.path.join(DEBUG_DIR, "annotated_result.jpg")
