@@ -22,17 +22,18 @@ from paddleocr import PaddleOCR
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 MODEL_PATH   = 'Model/yolov11x-license-plate.pt'
-IMAGE_PATH   = 'Model/Dataset/generic_1.jpg'
+IMAGE_PATH   = 'Model/Dataset/multiple_1.jpg'
 RESIZE_WIDTH = 800
 PAD          = 5
 DEBUG_DIR    = 'Debug'
+CONF_THRESH  = 0.6
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Model initialisation (done once at module level)
 # ─────────────────────────────────────────────────────────────────────────────
 print("[init] Loading YOLO model …")
-yolo_model = YOLO(MODEL_PATH)
+yolo_model = YOLO(MODEL_PATH, verbose=False)
 
 print("[init] Loading EasyOCR …")
 easy_reader = easyocr.Reader(['en'], gpu=True)
@@ -161,6 +162,11 @@ def process_image(image_path: str):
 
     for result in detections:
         img = result.orig_img
+
+        print(result.boxes.conf)
+
+        if result.boxes.conf[0] < CONF_THRESH:
+            continue
 
         if result.boxes is None or len(result.boxes) == 0:
             print("[detect] No plates found.")
