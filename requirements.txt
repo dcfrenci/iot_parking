@@ -16,4 +16,5 @@ paddlepaddle==3.2.2
 opencv-python
 numpy
 matplotlib
- 
+
+PyQt6
