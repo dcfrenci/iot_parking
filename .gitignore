@@ -1,2 +1,3 @@
 .venv/
 Debug/
+Model/__pycache__/
