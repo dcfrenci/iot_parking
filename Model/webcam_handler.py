@@ -1,7 +1,24 @@
 from lpr_model import*
+from enum import Enum
 
 CAMERA_INDEX = 0    # 0 = integrata, 1 = USB
 OCR_EVERY_N  = 10    # esegui OCR solo ogni N frame (alleggerisce il carico)
+
+N_STABLE_FRAMES = 8
+STABLE_PIXEL_THRESH = 8
+#MIN_SHARPNESS
+COOLDOWN_FRAMES = 30
+
+class State(Enum):
+    EMPTY = "EMPTY"
+    APPROACHING = "APPROACHING"
+    STOP = "STOP"
+    ANALYSIS = "ANALYSIS"
+
+
+def bbox_is_stable(a, b, thresh):
+    return all(abs(x - y) < thresh for x, y in zip(a, b))
+
 
 def run_webcam():
     cap = cv2.VideoCapture(CAMERA_INDEX)
@@ -12,6 +29,12 @@ def run_webcam():
     print("[webcam] Avviato — premi Q per uscire, S per salvare il frame.")
 
     frame_count = 0
+    state = State.EMPTY
+    last_bbox = None
+    stable_count = 0
+    best_crop = None
+    # best_sharpness = 0
+    cooldown = 0
 
     while True:
         ret, frame = cap.read()
@@ -21,11 +44,64 @@ def run_webcam():
 
         frame_count += 1
 
-        if frame_count % OCR_EVERY_N == 0:
-            process_image(frame)
+        # se non in cooldown verifica se una targa è entrata all'interno del frame e salva le coordinate
+        if cooldown > 0:
+            cooldown -= 1
+        else:
+            results = yolo_model.predict(source=frame)
+            found_boxes = []
+            for result in results:
+                if result.boxes == None:
+                    continue
+                for box in result.boxes:
+                    x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
+                    found_boxes.append((x1, y1, x2, y2))
+            
+            plate_detected = len(found_boxes) > 0
 
 
+            # macchina a stati
+
+            if state == State.EMPTY:
+                if plate_detected:
+                    print("EMPTY -> APPROACHING")
+                    state = State.APPROACHING
+                    last_bbox = found_boxes[0]
+                    stable_count = 0
+            
+            elif state == State.APPROACHING:
+                if not plate_detected:
+                    print("APPROACHING -> EMPTY (lost plate)")
+                    state = State.EMPTY
+                else:
+                    x1, y1, x2, y2 = found_boxes[0]
+
+                    if last_bbox and bbox_is_stable(found_boxes[0], last_bbox, STABLE_PIXEL_THRESH):
+                        stable_count += 1
+                    else:
+                        stable_count = 0
+                    
+                    last_bbox = found_boxes[0]
+
+                    if stable_count >= N_STABLE_FRAMES:
+                        print("APPROACHING -> STOP")
+                        state = State.STOP
+            
+            elif state == State.STOP:
+                print("STOP -> ANALYSIS")
+                state = State.ANALYSIS
+            
+            elif state == State.ANALYSIS:
+                process_image(frame)
+                print("ANALYSIS -> EMPTY")
+                state = State.EMPTY
+                cooldown = COOLDOWN_FRAMES
+
+        #if frame_count % OCR_EVERY_N == 0:
+            
         # ── HUD ─────────────────────────────────────────────────────
+        cv2.putText(frame, f"Stato: {state.value}  Cooldown: {cooldown}",
+                    (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (200, 200, 200), 1)
         cv2.putText(frame, "Q=esci  S=salva",
                     (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (200, 200, 200), 1)
         cv2.imshow("Webcam — License Plate Detector", frame)
