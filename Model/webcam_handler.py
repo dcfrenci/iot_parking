@@ -33,7 +33,6 @@ def run_webcam():
     last_bbox = None
     stable_count = 0
     best_crop = None
-    # best_sharpness = 0
     cooldown = 0
 
     while True:
@@ -97,7 +96,6 @@ def run_webcam():
                 state = State.EMPTY
                 cooldown = COOLDOWN_FRAMES
 
-        #if frame_count % OCR_EVERY_N == 0:
             
         # ── HUD ─────────────────────────────────────────────────────
         cv2.putText(frame, f"Stato: {state.value}  Cooldown: {cooldown}",
