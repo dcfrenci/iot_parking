@@ -18,3 +18,7 @@ numpy
 matplotlib
 
 PyQt6
+
+# Backend
+fastapi 
+uvicorn
