@@ -1,4 +1,4 @@
-package org.iot.app.screens
+package org.iot.app.screen
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,19 +12,14 @@ import androidx.compose.ui.unit.dp
 import app.composeapp.generated.resources.Res
 import app.composeapp.generated.resources.location_on
 import app.composeapp.generated.resources.search
+import org.iot.app.domain.model.Parking
+import org.iot.app.screen.map.MapUiState
+import org.iot.app.screen.map.MapViewModel
 import org.jetbrains.compose.resources.painterResource
 
-// Placeholder dati
-private data class ParkingSpot(val name: String, val distance: String)
-
-private val fakeParkings = listOf(
-    ParkingSpot("Parking Centro", "0.3 km"),
-    ParkingSpot("Parking Stazione", "0.8 km"),
-    ParkingSpot("Parking Nord", "1.2 km"),
-)
-
 @Composable
-fun MapScreen() {
+fun MapScreen(viewModel: MapViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
     Column(
@@ -33,23 +28,21 @@ fun MapScreen() {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Search bar
         OutlinedTextField(
-            value = searchQuery,
+            value         = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Search park / place") },
-            leadingIcon = {
+            placeholder   = { Text("Search park / place") },
+            leadingIcon   = {
                 Icon(
-                    painter = painterResource(Res.drawable.search),
+                    painter            = painterResource(Res.drawable.search),
                     contentDescription = "Search"
                 )
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier  = Modifier.fillMaxWidth(),
             singleLine = true,
-            shape = MaterialTheme.shapes.medium
+            shape      = MaterialTheme.shapes.medium
         )
 
-        // Map placeholder
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -59,67 +52,100 @@ fun MapScreen() {
             )
         ) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier        = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        painter = painterResource(Res.drawable.location_on),
+                        painter            = painterResource(Res.drawable.location_on),
                         contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        modifier           = Modifier.size(48.dp),
+                        tint               = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Map of parking\nclose to your location",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text      = "Map of parking\nclose to your location",
+                        style     = MaterialTheme.typography.bodyMedium,
+                        color     = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }
             }
         }
 
-        // Parking list
         Text(
-            text = "Parking list based on position and preferences",
+            text  = "Parking list based on position and preferences",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface
         )
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(fakeParkings) { parking ->
-                ParkingListItem(parking = parking)
+        MapContent(uiState = uiState, onRetry = { viewModel.loadParkings() })
+    }
+}
+
+@Composable
+private fun MapContent(uiState: MapUiState, onRetry: () -> Unit) {
+    when {
+        uiState.isLoading -> {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        uiState.error != null -> {
+            Column(
+                modifier            = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text  = "Error: ${uiState.error}",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Button(onClick = onRetry) { Text("Try again") }
+            }
+        }
+        else -> {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(uiState.parkings) { parking ->
+                    ParkingListItem(parking = parking)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ParkingListItem(parking: ParkingSpot) {
+private fun ParkingListItem(parking: Parking) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier
+            modifier            = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment   = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = parking.name,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = parking.distance,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Column {
+                Text(text = parking.name,    style = MaterialTheme.typography.bodyMedium)
+                Text(text = parking.address, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text  = "${parking.distanceKm} km",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text  = "€ ${parking.pricePerHour}/h",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

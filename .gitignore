@@ -1,3 +1,4 @@
 .venv/
+Backend/__pycache__/
 Debug/
 Model/__pycache__/

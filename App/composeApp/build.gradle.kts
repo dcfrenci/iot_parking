@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+
+    alias(libs.plugins.kotlinx.serialization)
 }
 
 kotlin {
@@ -29,6 +31,11 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
+
+            implementation(libs.ktor.client.android)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -41,6 +48,16 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
             implementation(libs.navigation.compose)
+
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.neg)
+            implementation(libs.ktor.serialization.json)
+            implementation(libs.kotlinx.serialization)
+            implementation(libs.kotlinx.coroutines)
+
+            implementation(libs.ktor.client.logging)
+
+            implementation("dev.icerock.moko:permissions-compose:0.18.0")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

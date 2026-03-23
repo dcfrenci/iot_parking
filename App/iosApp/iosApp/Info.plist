@@ -5,4 +5,8 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 </dict>
+<dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+</dict>
 </plist>

@@ -1,4 +1,4 @@
-package org.iot.app.screens
+package org.iot.app.screen
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,45 +11,64 @@ import androidx.compose.ui.unit.dp
 import app.composeapp.generated.resources.Res
 import app.composeapp.generated.resources.navigation
 import app.composeapp.generated.resources.notifications
+import org.iot.app.domain.model.Booking
+import org.iot.app.domain.model.CurrentParking
+import org.iot.app.screen.home.HomeUiState
+import org.iot.app.screen.home.HomeViewModel
 import org.jetbrains.compose.resources.painterResource
 
-// Placeholder dati
-private data class CurrentParking(
-    val carName: String,
-    val price: String,
-)
+@Composable
+fun HomeScreen(viewModel: HomeViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
 
-private data class BookedPark(
-    val name: String,
-    val date: String,
-    val carName: String,
-    val parkSelected: String,
-)
-
-private val fakeCurrentParking = CurrentParking(
-    carName = "Audi A3 - AB123CD",
-    price = "€ 2.50 / h"
-)
-
-private val fakeBookedParks = listOf(
-    BookedPark("Parking Centro",   "20 Mar 2025", "Audi A3 - AB123CD", "Slot A4"),
-    BookedPark("Parking Stazione", "18 Mar 2025", "BMW X1 - EF456GH",  "Slot B2"),
-)
+    when {
+        uiState.isLoading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        uiState.error != null -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text  = "Error: ${uiState.error}",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Button(onClick = { viewModel.loadData() }) { Text("Try again") }
+                }
+            }
+        }
+        else -> HomeContent(uiState = uiState)
+    }
+}
 
 @Composable
-fun HomeScreen() {
+private fun HomeContent(uiState: HomeUiState) {
     LazyColumn(
-        modifier = Modifier
+        modifier            = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item { SectionTitle("Currently parked") }
-        item { CurrentlyParkedCard(parking = fakeCurrentParking) }
+        item {
+            if (uiState.currentParking != null) {
+                CurrentlyParkedCard(parking = uiState.currentParking)
+            } else {
+                Text(
+                    text  = "No parking available",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
 
         item { SectionTitle("Booked car park") }
-        items(fakeBookedParks) { booked ->
-            BookedParkCard(booked = booked)
+        items(uiState.bookings) { booking ->
+            BookedParkCard(booked = booking)
         }
     }
 }
@@ -57,7 +76,7 @@ fun HomeScreen() {
 @Composable
 private fun SectionTitle(title: String) {
     Text(
-        text = title,
+        text  = title,
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onBackground
     )
@@ -67,62 +86,68 @@ private fun SectionTitle(title: String) {
 private fun CurrentlyParkedCard(parking: CurrentParking) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
+        colors   = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier
+            modifier            = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment     = Alignment.CenterVertically
             ) {
                 Text(
-                    text = parking.carName,
+                    text  = parking.carPlate,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = parking.price,
+                    text  = "€ ${parking.pricePerHour} / h",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
+
+            Text(
+                text  = parking.parkingName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
 
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
-                    onClick = { /* TODO: set alarm */ },
+                    onClick  = { /* TODO: set alarm */ },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        painter = painterResource(Res.drawable.notifications),
+                        painter            = painterResource(Res.drawable.notifications),
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier           = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(6.dp))
                     Text("Alarm")
                 }
                 Button(
-                    onClick = { /* TODO: show directions */ },
+                    onClick  = { /* TODO: show directions */ },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        painter = painterResource(Res.drawable.navigation),
+                        painter            = painterResource(Res.drawable.navigation),
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier           = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(6.dp))
                     Text("Direction")
@@ -133,36 +158,31 @@ private fun CurrentlyParkedCard(parking: CurrentParking) {
 }
 
 @Composable
-private fun BookedParkCard(booked: BookedPark) {
+private fun BookedParkCard(booked: Booking) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        modifier  = Modifier.fillMaxWidth(),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
-            modifier = Modifier
+            modifier            = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            Text(text = booked.parkingName, style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = booked.name,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = booked.date,
+                text  = booked.date,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = booked.carName,
+                text  = booked.carPlate,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = booked.parkSelected,
+                text  = booked.slotCode,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary
             )

@@ -13,94 +13,127 @@ import androidx.compose.ui.unit.dp
 import app.composeapp.generated.resources.Res
 import app.composeapp.generated.resources.credit_card
 import app.composeapp.generated.resources.person
+import org.iot.app.domain.model.PaymentMethod
+import org.iot.app.domain.model.Plate
+import org.iot.app.domain.model.User
+import org.iot.app.screen.settings.SettingsUiState
+import org.iot.app.screen.settings.SettingsViewModel
 import org.jetbrains.compose.resources.painterResource
 
-// Placeholder dati
-private data class RegisteredPlate(
-    val name: String,
-    val plateText: String,
-    val isActive: Boolean,
-)
+@Composable
+fun SettingsScreen(viewModel: SettingsViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
 
-private val fakePlates = listOf(
-    RegisteredPlate("Audi A3", "AB123CD", isActive = true),
-    RegisteredPlate("BMW X1",  "EF456GH", isActive = false),
-)
+    when {
+        uiState.isLoading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        uiState.error != null -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text  = "Error: ${uiState.error}",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Button(onClick = { viewModel.loadData() }) { Text("Try again") }
+                }
+            }
+        }
+        else -> SettingsContent(
+            uiState        = uiState,
+            onTogglePlate  = { id, active -> viewModel.togglePlate(id, active) },
+            onSavePrefs    = { dist, price -> viewModel.updatePreferences(dist, price) }
+        )
+    }
+}
 
 @Composable
-fun SettingsScreen() {
+private fun SettingsContent(
+    uiState       : SettingsUiState,
+    onTogglePlate : (String, Boolean) -> Unit,
+    onSavePrefs   : (Double, Double) -> Unit,
+) {
     LazyColumn(
-        modifier = Modifier
+        modifier            = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item { SectionHeader("Account") }
-        item { AccountCard() }
+        item { uiState.user?.let { AccountCard(user = it) } }
 
         item { SectionHeader("Registered plate") }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                fakePlates.forEach { plate ->
-                    RegisteredPlateCard(plate = plate)
+                uiState.plates.forEach { plate ->
+                    RegisteredPlateCard(
+                        plate         = plate,
+                        onToggle      = { isActive -> onTogglePlate(plate.id, isActive) }
+                    )
                 }
             }
         }
 
         item { SectionHeader("Payment method") }
-        item { PaymentMethodCard() }
+        item { uiState.paymentMethod?.let { PaymentMethodCard(payment = it) } }
 
         item { SectionHeader("Parking preferences") }
-        item { ParkingPreferencesCard() }
+        item {
+            ParkingPreferencesCard(
+                initialDistance = uiState.preferences.maxDistanceKm,
+                initialPrice    = uiState.preferences.maxPricePerHour,
+                onSave          = onSavePrefs
+            )
+        }
     }
 }
 
 @Composable
 private fun SectionHeader(title: String) {
     Text(
-        text = title,
+        text  = title,
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onBackground
     )
 }
 
 @Composable
-private fun AccountCard() {
+private fun AccountCard(user: User) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        modifier  = Modifier.fillMaxWidth(),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier
+            modifier              = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
-                modifier = Modifier
+                modifier         = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(Res.drawable.person),
+                    painter            = painterResource(Res.drawable.person),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(24.dp)
+                    tint               = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier           = Modifier.size(24.dp)
                 )
             }
             Column {
+                Text(text = user.name,  style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    text = "Mario Rossi",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Text(
-                    text = "mario.rossi@email.com",
+                    text  = user.email,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -110,31 +143,31 @@ private fun AccountCard() {
 }
 
 @Composable
-private fun RegisteredPlateCard(plate: RegisteredPlate) {
+private fun RegisteredPlateCard(
+    plate    : Plate,
+    onToggle : (Boolean) -> Unit,
+) {
+    var checked by remember(plate.id) { mutableStateOf(plate.isActive) }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        modifier  = Modifier.fillMaxWidth(),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
-            modifier = Modifier
+            modifier            = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment     = Alignment.CenterVertically
             ) {
-                Text(
-                    text = plate.name,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                Text(text = plate.name, style = MaterialTheme.typography.bodyLarge)
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Box(
@@ -142,46 +175,48 @@ private fun RegisteredPlateCard(plate: RegisteredPlate) {
                             .size(10.dp)
                             .clip(CircleShape)
                             .background(
-                                if (plate.isActive) MaterialTheme.colorScheme.tertiary
+                                if (checked) MaterialTheme.colorScheme.tertiary
                                 else MaterialTheme.colorScheme.error
                             )
                     )
                     Text(
-                        text = if (plate.isActive) "Active" else "Inactive",
+                        text  = if (checked) "Active" else "Inactive",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (plate.isActive) MaterialTheme.colorScheme.tertiary
-                        else MaterialTheme.colorScheme.error
+                        color = if (checked) MaterialTheme.colorScheme.tertiary
+                                else MaterialTheme.colorScheme.error
                     )
                 }
             }
 
             Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape    = MaterialTheme.shapes.small,
+                color    = MaterialTheme.colorScheme.secondaryContainer,
                 modifier = Modifier.wrapContentWidth()
             ) {
                 Text(
-                    text = plate.plateText,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    text     = plate.plateText,
+                    style    = MaterialTheme.typography.labelLarge,
+                    color    = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                 )
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment     = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "State",
+                    text  = "State",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                var checked by remember { mutableStateOf(plate.isActive) }
                 Switch(
-                    checked = checked,
-                    onCheckedChange = { checked = it }
+                    checked         = checked,
+                    onCheckedChange = {
+                        checked = it
+                        onToggle(it)
+                    }
                 )
             }
         }
@@ -189,33 +224,31 @@ private fun RegisteredPlateCard(plate: RegisteredPlate) {
 }
 
 @Composable
-private fun PaymentMethodCard() {
+private fun PaymentMethodCard(payment: PaymentMethod) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        modifier  = Modifier.fillMaxWidth(),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier
+            modifier              = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment     = Alignment.CenterVertically
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Icon(
-                    painter = painterResource(Res.drawable.credit_card),
+                    painter            = painterResource(Res.drawable.credit_card),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    tint               = MaterialTheme.colorScheme.primary,
+                    modifier           = Modifier.size(24.dp)
                 )
                 Text(
-                    text = "**** **** **** 4242",
+                    text  = "${payment.brand} **** ${payment.lastFour}",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -227,59 +260,73 @@ private fun PaymentMethodCard() {
 }
 
 @Composable
-private fun ParkingPreferencesCard() {
-    var maxDistance by remember { mutableStateOf(0.5f) }
-    var maxPrice    by remember { mutableStateOf(0.4f) }
+private fun ParkingPreferencesCard(
+    initialDistance : Double,
+    initialPrice    : Double,
+    onSave          : (Double, Double) -> Unit,
+) {
+    var distance by remember(initialDistance) { mutableStateOf((initialDistance / 5f).toFloat()) }
+    var price    by remember(initialPrice)    { mutableStateOf((initialPrice / 10f).toFloat()) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        modifier  = Modifier.fillMaxWidth(),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
-            modifier = Modifier
+            modifier            = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier              = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Distance", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = "${(kotlin.math.round(maxDistance * 5 * 10) / 10.0)} km",
+                        text  = "${(kotlin.math.round(distance * 5 * 10) / 10.0)} km",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 Slider(
-                    value = maxDistance,
-                    onValueChange = { maxDistance = it },
-                    modifier = Modifier.fillMaxWidth()
+                    value         = distance,
+                    onValueChange = { distance = it },
+                    modifier      = Modifier.fillMaxWidth()
                 )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier              = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Price", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = "€ ${(kotlin.math.round(maxPrice * 10 * 10) / 10.0)} / h",
+                        text  = "€ ${(kotlin.math.round(price * 10 * 10) / 10.0)} / h",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 Slider(
-                    value = maxPrice,
-                    onValueChange = { maxPrice = it },
-                    modifier = Modifier.fillMaxWidth()
+                    value         = price,
+                    onValueChange = { price = it },
+                    modifier      = Modifier.fillMaxWidth()
                 )
+            }
+
+            Button(
+                onClick  = {
+                    onSave(
+                        kotlin.math.round(distance * 5 * 10) / 10.0,
+                        kotlin.math.round(price * 10 * 10) / 10.0
+                    )
+                },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Save")
             }
         }
     }
