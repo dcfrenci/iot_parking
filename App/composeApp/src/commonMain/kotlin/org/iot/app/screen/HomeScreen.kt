@@ -8,6 +8,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.composeapp.generated.resources.Res
+import app.composeapp.generated.resources.navigation
+import app.composeapp.generated.resources.notifications
+import org.jetbrains.compose.resources.painterResource
 
 // Placeholder dati
 private data class CurrentParking(
@@ -28,8 +32,8 @@ private val fakeCurrentParking = CurrentParking(
 )
 
 private val fakeBookedParks = listOf(
-    BookedPark("Parking Centro",  "20 Mar 2025", "Audi A3 - AB123CD", "Slot A4"),
-    BookedPark("Parking Stazione","18 Mar 2025", "BMW X1 - EF456GH", "Slot B2"),
+    BookedPark("Parking Centro",   "20 Mar 2025", "Audi A3 - AB123CD", "Slot A4"),
+    BookedPark("Parking Stazione", "18 Mar 2025", "BMW X1 - EF456GH",  "Slot B2"),
 )
 
 @Composable
@@ -40,18 +44,10 @@ fun HomeScreen() {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // Currently parked section
-        item {
-            SectionTitle("Currently parked")
-        }
-        item {
-            CurrentlyParkedCard(parking = fakeCurrentParking)
-        }
+        item { SectionTitle("Currently parked") }
+        item { CurrentlyParkedCard(parking = fakeCurrentParking) }
 
-        // Booked car parks section
-        item {
-            SectionTitle("Booked car park")
-        }
+        item { SectionTitle("Booked car park") }
         items(fakeBookedParks) { booked ->
             BookedParkCard(booked = booked)
         }
@@ -99,32 +95,32 @@ private fun CurrentlyParkedCard(parking: CurrentParking) {
                 )
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Alarm button
                 OutlinedButton(
                     onClick = { /* TODO: set alarm */ },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Default.Notifications,
+                        painter = painterResource(Res.drawable.notifications),
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(6.dp))
                     Text("Alarm")
                 }
-                // Direction button
                 Button(
                     onClick = { /* TODO: show directions */ },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Default.Navigation,
+                        painter = painterResource(Res.drawable.navigation),
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )

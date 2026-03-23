@@ -7,7 +7,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.composeapp.generated.resources.Res
+import app.composeapp.generated.resources.location_on
+import app.composeapp.generated.resources.search
+import org.jetbrains.compose.resources.painterResource
 
 // Placeholder dati
 private data class ParkingSpot(val name: String, val distance: String)
@@ -35,7 +40,7 @@ fun MapScreen() {
             placeholder = { Text("Search park / place") },
             leadingIcon = {
                 Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.Search,
+                    painter = painterResource(Res.drawable.search),
                     contentDescription = "Search"
                 )
             },
@@ -59,7 +64,7 @@ fun MapScreen() {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Default.LocationOn,
+                        painter = painterResource(Res.drawable.location_on),
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -69,7 +74,7 @@ fun MapScreen() {
                         text = "Map of parking\nclose to your location",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = TextAlign.Center
                     )
                 }
             }

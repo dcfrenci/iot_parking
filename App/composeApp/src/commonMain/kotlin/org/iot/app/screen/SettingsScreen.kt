@@ -10,6 +10,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import app.composeapp.generated.resources.Res
+import app.composeapp.generated.resources.credit_card
+import app.composeapp.generated.resources.person
+import org.jetbrains.compose.resources.painterResource
 
 // Placeholder dati
 private data class RegisteredPlate(
@@ -19,8 +23,8 @@ private data class RegisteredPlate(
 )
 
 private val fakePlates = listOf(
-    RegisteredPlate("Audi A3",  "AB123CD", isActive = true),
-    RegisteredPlate("BMW X1",   "EF456GH", isActive = false),
+    RegisteredPlate("Audi A3", "AB123CD", isActive = true),
+    RegisteredPlate("BMW X1",  "EF456GH", isActive = false),
 )
 
 @Composable
@@ -31,11 +35,9 @@ fun SettingsScreen() {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Account section
         item { SectionHeader("Account") }
         item { AccountCard() }
 
-        // Registered plates section
         item { SectionHeader("Registered plate") }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -45,11 +47,9 @@ fun SettingsScreen() {
             }
         }
 
-        // Payment method section
         item { SectionHeader("Payment method") }
         item { PaymentMethodCard() }
 
-        // Parking preferences section
         item { SectionHeader("Parking preferences") }
         item { ParkingPreferencesCard() }
     }
@@ -80,7 +80,6 @@ private fun AccountCard() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Avatar placeholder
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -89,9 +88,10 @@ private fun AccountCard() {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.Person,
+                    painter = painterResource(Res.drawable.person),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(24.dp)
                 )
             }
             Column {
@@ -133,7 +133,6 @@ private fun RegisteredPlateCard(plate: RegisteredPlate) {
                     text = plate.name,
                     style = MaterialTheme.typography.bodyLarge
                 )
-                // Active / Inactive indicator
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -151,12 +150,11 @@ private fun RegisteredPlateCard(plate: RegisteredPlate) {
                         text = if (plate.isActive) "Active" else "Inactive",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (plate.isActive) MaterialTheme.colorScheme.tertiary
-                                else MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.error
                     )
                 }
             }
 
-            // Plate text
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = MaterialTheme.colorScheme.secondaryContainer,
@@ -170,7 +168,6 @@ private fun RegisteredPlateCard(plate: RegisteredPlate) {
                 )
             }
 
-            // State toggle row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -212,9 +209,10 @@ private fun PaymentMethodCard() {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.CreditCard,
+                    painter = painterResource(Res.drawable.credit_card),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
                 )
                 Text(
                     text = "**** **** **** 4242",
@@ -230,8 +228,8 @@ private fun PaymentMethodCard() {
 
 @Composable
 private fun ParkingPreferencesCard() {
-    var maxDistance by remember { mutableStateOf(0.5f) } // 0..1 → 0..5 km
-    var maxPrice    by remember { mutableStateOf(0.4f) } // 0..1 → 0..10 €/h
+    var maxDistance by remember { mutableStateOf(0.5f) }
+    var maxPrice    by remember { mutableStateOf(0.4f) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -246,7 +244,6 @@ private fun ParkingPreferencesCard() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Distance preference
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -254,7 +251,7 @@ private fun ParkingPreferencesCard() {
                 ) {
                     Text("Distance", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = "${"%.1f".format(maxDistance * 5)} km",
+                        text = "${(kotlin.math.round(maxDistance * 5 * 10) / 10.0)} km",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -266,7 +263,6 @@ private fun ParkingPreferencesCard() {
                 )
             }
 
-            // Price preference
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -274,7 +270,7 @@ private fun ParkingPreferencesCard() {
                 ) {
                     Text("Price", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = "€ ${"%.1f".format(maxPrice * 10)} / h",
+                        text = "€ ${(kotlin.math.round(maxPrice * 10 * 10) / 10.0)} / h",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
