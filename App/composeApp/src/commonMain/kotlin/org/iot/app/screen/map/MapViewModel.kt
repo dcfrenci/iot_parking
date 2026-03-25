@@ -14,6 +14,11 @@ data class MapUiState(
     val parkings: List<Parking> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
+    val isMapExpanded: Boolean = false,
+    val selectedParking: Parking? = null,
+    // Camera center for the OSM map
+    val mapCenterLat: Double = 44.6471,
+    val mapCenterLon: Double = 10.9252,
 )
 
 class MapViewModel(
@@ -27,9 +32,9 @@ class MapViewModel(
         loadParkings()
     }
 
-    fun loadParkings(lat: Double = 44.4949, lon: Double = 11.3426) {
+    fun loadParkings(lat: Double = 44.6471, lon: Double = 10.9252) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, error = null, mapCenterLat = lat, mapCenterLon = lon) }
             getNearbyParkings(lat, lon)
                 .onSuccess { parkings ->
                     _uiState.update { it.copy(parkings = parkings, isLoading = false) }
@@ -38,5 +43,13 @@ class MapViewModel(
                     _uiState.update { it.copy(error = e.message, isLoading = false) }
                 }
         }
+    }
+
+    fun toggleMapExpanded() {
+        _uiState.update { it.copy(isMapExpanded = !it.isMapExpanded, selectedParking = null) }
+    }
+
+    fun selectParking(parking: Parking?) {
+        _uiState.update { it.copy(selectedParking = parking) }
     }
 }

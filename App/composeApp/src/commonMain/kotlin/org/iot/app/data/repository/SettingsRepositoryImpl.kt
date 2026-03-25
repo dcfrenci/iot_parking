@@ -1,6 +1,7 @@
 package org.iot.app.data.repository
 
 import org.iot.app.data.remote.SettingsApi
+import org.iot.app.data.remote.dto.CreatePlateDto
 import org.iot.app.data.remote.dto.ParkingPreferencesDto
 import org.iot.app.data.remote.dto.PaymentMethodDto
 import org.iot.app.data.remote.dto.PlateDto
@@ -24,6 +25,14 @@ class SettingsRepositoryImpl(
     override suspend fun setPlateActive(plateId: String, isActive: Boolean): Result<Unit> =
         runCatching { api.setPlateActive(plateId, isActive) }
 
+    override suspend fun addPlate(
+        name: String,
+        plateText: String,
+        imageUri: String?,
+    ): Result<Plate> = runCatching {
+        api.addPlate(CreatePlateDto(name, plateText, imageUri)).toDomain()
+    }
+
     override suspend fun getPaymentMethod(): Result<PaymentMethod> =
         runCatching { api.getPaymentMethod().toDomain() }
 
@@ -33,7 +42,7 @@ class SettingsRepositoryImpl(
     override suspend fun savePreferences(prefs: ParkingPreferences): Result<Unit> =
         runCatching { api.savePreferences(prefs.toDto()) }
 
-    // ── Mappers ──────────────────────────────────────────────────────────────
+    // ── Mappers ───────────────────────────────────────────────────────────────
 
     private fun UserDto.toDomain() = User(id = id, name = name, email = email)
 
@@ -42,6 +51,7 @@ class SettingsRepositoryImpl(
         name      = name,
         plateText = plateText,
         isActive  = isActive,
+        imageUri  = imageUri,
     )
 
     private fun PaymentMethodDto.toDomain() = PaymentMethod(

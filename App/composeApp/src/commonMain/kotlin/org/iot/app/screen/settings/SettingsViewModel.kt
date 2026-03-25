@@ -11,6 +11,7 @@ import org.iot.app.domain.model.ParkingPreferences
 import org.iot.app.domain.model.PaymentMethod
 import org.iot.app.domain.model.Plate
 import org.iot.app.domain.model.User
+import org.iot.app.domain.usecase.AddPlateUseCase
 import org.iot.app.domain.usecase.GetPaymentMethodUseCase
 import org.iot.app.domain.usecase.GetPlatesUseCase
 import org.iot.app.domain.usecase.GetPreferencesUseCase
@@ -25,12 +26,14 @@ data class SettingsUiState(
     val preferences: ParkingPreferences = ParkingPreferences(2.5, 5.0),
     val isLoading: Boolean = false,
     val error: String? = null,
+    val isAddPlateDialogOpen: Boolean = false,
 )
 
 class SettingsViewModel(
     private val getUser: GetUserUseCase,
     private val getPlates: GetPlatesUseCase,
     private val setPlateActive: SetPlateActiveUseCase,
+    private val addPlate: AddPlateUseCase,
     private val getPaymentMethod: GetPaymentMethodUseCase,
     private val getPreferences: GetPreferencesUseCase,
     private val savePreferences: SavePreferencesUseCase,
@@ -46,20 +49,10 @@ class SettingsViewModel(
     fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-
-            getUser().onSuccess { user ->
-                _uiState.update { it.copy(user = user) }
-            }
-            getPlates().onSuccess { plates ->
-                _uiState.update { it.copy(plates = plates) }
-            }
-            getPaymentMethod().onSuccess { payment ->
-                _uiState.update { it.copy(paymentMethod = payment) }
-            }
-            getPreferences().onSuccess { prefs ->
-                _uiState.update { it.copy(preferences = prefs) }
-            }
-
+            getUser().onSuccess { user -> _uiState.update { it.copy(user = user) } }
+            getPlates().onSuccess { plates -> _uiState.update { it.copy(plates = plates) } }
+            getPaymentMethod().onSuccess { pm -> _uiState.update { it.copy(paymentMethod = pm) } }
+            getPreferences().onSuccess { prefs -> _uiState.update { it.copy(preferences = prefs) } }
             _uiState.update { it.copy(isLoading = false) }
         }
     }
@@ -69,9 +62,30 @@ class SettingsViewModel(
             setPlateActive(plateId, isActive).onSuccess {
                 _uiState.update { state ->
                     state.copy(
-                        plates = state.plates.map { plate ->
-                            if (plate.id == plateId) plate.copy(isActive = isActive) else plate
+                        plates = state.plates.map { p ->
+                            if (p.id == plateId) p.copy(isActive = isActive) else p
                         }
+                    )
+                }
+            }
+        }
+    }
+
+    fun openAddPlateDialog() {
+        _uiState.update { it.copy(isAddPlateDialogOpen = true) }
+    }
+
+    fun closeAddPlateDialog() {
+        _uiState.update { it.copy(isAddPlateDialogOpen = false) }
+    }
+
+    fun submitAddPlate(name: String, plateText: String, imageUri: String?) {
+        viewModelScope.launch {
+            addPlate(name, plateText, imageUri).onSuccess { plate ->
+                _uiState.update { state ->
+                    state.copy(
+                        plates = state.plates + plate,
+                        isAddPlateDialogOpen = false,
                     )
                 }
             }

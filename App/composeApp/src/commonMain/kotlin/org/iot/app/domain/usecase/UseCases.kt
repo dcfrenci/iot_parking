@@ -10,7 +10,7 @@ import org.iot.app.domain.model.User
 import org.iot.app.domain.repository.ParkingRepository
 import org.iot.app.domain.repository.SettingsRepository
 
-// ── Parking ──────────────────────────────────────────────────────────────────
+// ── Parking ───────────────────────────────────────────────────────────────────
 
 class GetNearbyParkingsUseCase(private val repository: ParkingRepository) {
     suspend operator fun invoke(lat: Double, lon: Double): Result<List<Parking>> =
@@ -27,7 +27,21 @@ class GetBookingsUseCase(private val repository: ParkingRepository) {
         repository.getBookings()
 }
 
-// ── Settings ─────────────────────────────────────────────────────────────────
+class CreateBookingUseCase(private val repository: ParkingRepository) {
+    suspend operator fun invoke(
+        name: String,
+        parkingId: String,
+        carPlate: String,
+        days: Int,
+    ): Result<Booking> = repository.createBooking(name, parkingId, carPlate, days)
+}
+
+class UpdateBookingPlateUseCase(private val repository: ParkingRepository) {
+    suspend operator fun invoke(bookingId: String, carPlate: String): Result<Booking> =
+        repository.updateBookingPlate(bookingId, carPlate)
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
 
 class GetUserUseCase(private val repository: SettingsRepository) {
     suspend operator fun invoke(): Result<User> =
@@ -42,6 +56,14 @@ class GetPlatesUseCase(private val repository: SettingsRepository) {
 class SetPlateActiveUseCase(private val repository: SettingsRepository) {
     suspend operator fun invoke(plateId: String, isActive: Boolean): Result<Unit> =
         repository.setPlateActive(plateId, isActive)
+}
+
+class AddPlateUseCase(private val repository: SettingsRepository) {
+    suspend operator fun invoke(
+        name: String,
+        plateText: String,
+        imageUri: String?,
+    ): Result<Plate> = repository.addPlate(name, plateText, imageUri)
 }
 
 class GetPaymentMethodUseCase(private val repository: SettingsRepository) {

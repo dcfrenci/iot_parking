@@ -19,10 +19,27 @@ data class ParkingDto(
 @Serializable
 data class BookingDto(
     val id: String,
+    val name: String,
+    @SerialName("parking_id") val parkingId: String,
     @SerialName("parking_name") val parkingName: String,
     val date: String,
     @SerialName("car_plate") val carPlate: String,
     @SerialName("slot_code") val slotCode: String,
+    val days: Int,
+    @SerialName("price_per_hour") val pricePerHour: Double,
+)
+
+@Serializable
+data class CreateBookingDto(
+    val name: String,
+    @SerialName("parking_id") val parkingId: String,
+    @SerialName("car_plate") val carPlate: String,
+    val days: Int,
+)
+
+@Serializable
+data class UpdateBookingPlateDto(
+    @SerialName("car_plate") val carPlate: String,
 )
 
 @Serializable
@@ -31,4 +48,6 @@ data class CurrentParkingDto(
     @SerialName("car_plate") val carPlate: String,
     @SerialName("price_per_hour") val pricePerHour: Double,
     @SerialName("started_at") val startedAt: String,
+    val latitude: Double,
+    val longitude: Double,
 )

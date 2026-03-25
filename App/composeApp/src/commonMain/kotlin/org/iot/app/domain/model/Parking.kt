@@ -14,15 +14,21 @@ data class Parking(
 
 data class Booking(
     val id: String,
+    val name: String,           // user-chosen booking name
+    val parkingId: String,
     val parkingName: String,
     val date: String,
     val carPlate: String,
     val slotCode: String,
+    val days: Int,
+    val pricePerHour: Double,
 )
 
 data class CurrentParking(
     val parkingName: String,
     val carPlate: String,
     val pricePerHour: Double,
-    val startedAt: String,
+    val startedAt: String,        // ISO-8601
+    val latitude: Double,
+    val longitude: Double,
 )
