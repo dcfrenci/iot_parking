@@ -22,3 +22,6 @@ PyQt6
 # Backend
 fastapi 
 uvicorn
+sqlachemy
+pydantic
+bcrypt
