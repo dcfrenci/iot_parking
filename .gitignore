@@ -12,3 +12,5 @@ Server/routers/__pycache__/plates.cpython-314.pyc
 Server/routers/__pycache__/parkings.cpython-314.pyc
 Server/routers/__pycache__/sessions.cpython-314.pyc
 Server/routers/__pycache__/users.cpython-314.pyc
+Server/__pycache__/security.cpython-314.pyc
+

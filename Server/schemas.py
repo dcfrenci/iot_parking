@@ -99,6 +99,7 @@ class UpdateBookingPlateDto(BaseModel):
 
 class SessionBase(BaseModel):
     plate_id: int
+    parking_id: int
 
 class SessionCreate(SessionBase):
     pass
