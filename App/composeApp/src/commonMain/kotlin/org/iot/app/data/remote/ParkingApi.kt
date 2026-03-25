@@ -21,14 +21,19 @@ class ParkingApi(private val client: HttpClient) {
             parameter("lon", lon)
         }.body()
 
-    suspend fun getCurrentParking(): CurrentParkingDto? =
-        client.get("parking/current").body()
+    suspend fun getCurrentParking(userId: Int = 1): CurrentParkingDto? =
+        client.get("parking/current") {
+            parameter("user_id", userId)
+        }.body()
 
-    suspend fun getBookings(): List<BookingDto> =
-        client.get("bookings").body()
+    suspend fun getBookings(userId: Int = 1): List<BookingDto> =
+        client.get("bookings"){
+            parameter("user_id", userId)
+        }.body()
 
-    suspend fun createBooking(dto: CreateBookingDto): BookingDto =
+    suspend fun createBooking(dto: CreateBookingDto, userId: Int = 1): BookingDto =
         client.post("bookings") {
+            parameter("user_id", userId)
             setBody(dto)
         }.body()
 

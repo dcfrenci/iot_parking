@@ -40,3 +40,16 @@ def create_parking(parking: ParkingCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_parking)
     return db_parking
+
+
+# TODO It's just a mockup
+@router.get("/parking/current")
+def get_current_parking(user_id: int = 1):
+    return {
+        "parking_name": "Central Station Parking",
+        "car_plate": "AB123CD",
+        "price_per_hour": 2.50,
+        "started_at": "2026-03-23T18:00:00Z",
+        "latitude": 44.6471,
+        "longitude": 10.9252,
+    }

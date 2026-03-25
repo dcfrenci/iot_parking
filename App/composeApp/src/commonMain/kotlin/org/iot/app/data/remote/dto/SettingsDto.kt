@@ -24,6 +24,7 @@ data class CreatePlateDto(
     val name: String,
     @SerialName("plate_text") val plateText: String,
     @SerialName("image_uri") val imageUri: String? = null,
+    @SerialName("user_id") val userId: Int = 1,
 )
 
 @Serializable

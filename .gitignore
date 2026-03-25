@@ -2,15 +2,6 @@
 Backend/__pycache__/
 Debug/
 Model/__pycache__/
+Server/__pycache__/
+Server/routers/__pycache__/
 Server/parking.db
-Server/__pycache__/database.cpython-314.pyc
-Server/__pycache__/main.cpython-314.pyc
-Server/__pycache__/models.cpython-314.pyc
-Server/__pycache__/schemas.cpython-314.pyc
-Server/routers/__pycache__/bookings.cpython-314.pyc
-Server/routers/__pycache__/plates.cpython-314.pyc
-Server/routers/__pycache__/parkings.cpython-314.pyc
-Server/routers/__pycache__/sessions.cpython-314.pyc
-Server/routers/__pycache__/users.cpython-314.pyc
-Server/__pycache__/security.cpython-314.pyc
-

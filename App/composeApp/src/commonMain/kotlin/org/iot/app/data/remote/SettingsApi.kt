@@ -3,6 +3,7 @@ package org.iot.app.data.remote
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -16,11 +17,15 @@ import org.iot.app.data.remote.dto.UserDto
 
 class SettingsApi(private val client: HttpClient) {
 
-    suspend fun getUser(): UserDto =
-        client.get("user").body()
+    suspend fun getUser(userId: Int = 1): UserDto =
+        client.get("user") {
+            parameter("user_id", userId)
+        }.body()
 
-    suspend fun getPlates(): List<PlateDto> =
-        client.get("user/plates").body()
+    suspend fun getPlates(userId: Int = 1): List<PlateDto> =
+        client.get("user/plates") {
+            parameter("user_id", userId)
+        }.body()
 
     suspend fun setPlateActive(plateId: String, isActive: Boolean) {
         client.patch("user/plates/$plateId") {

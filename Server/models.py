@@ -40,14 +40,16 @@ class Parking(Base):
 class Booking(Base):
     __tablename__ = "bookings"
 
-    id         = Column(Integer, primary_key=True)
-    name       = Column(String)
-    parking_id = Column(Integer, ForeignKey("parkings.id"))
-    date       = Column(DateTime)
-    car_plate  = Column(String)
-    slot_code  = Column(String)
-    days       = Column(Integer)
-    user_id    = Column(Integer, ForeignKey("users.id"))
+    id             = Column(Integer, primary_key=True)
+    name           = Column(String)
+    parking_id     = Column(Integer, ForeignKey("parkings.id"))
+    parking_name   = Column(String)
+    date           = Column(DateTime)
+    car_plate      = Column(String)
+    slot_code      = Column(String)
+    days           = Column(Integer)
+    price_per_hour = Column(Float)
+    user_id        = Column(Integer, ForeignKey("users.id"))
 
 
 class ParkingSession(Base):

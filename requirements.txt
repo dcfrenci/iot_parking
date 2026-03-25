@@ -1,4 +1,4 @@
-p# License Plate Detection + OCR Pipeline
+# License Plate Detection + OCR Pipeline
 # Install with: pip install -r requirements.txt
  
 # YOLO detection
@@ -22,6 +22,6 @@ PyQt6
 # Backend
 fastapi 
 uvicorn
-sqlachemy
+sqlalchemy
 pydantic
 bcrypt

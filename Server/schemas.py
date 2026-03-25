@@ -86,6 +86,7 @@ class BookingResponse(BookingBase):
     date: datetime
     slot_code: str
     price_per_hour: float
+    parking_name: str
     user_id: int
 
     class Config:

@@ -22,19 +22,21 @@ def get_bookings(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/bookings", response_model=BookingResponse, status_code=201)
-def create_booking(body: BookingCreate, user_id: int, db: Session = Depends(get_db)):
+def create_booking(body: BookingCreate, user_id: int = 1, db: Session = Depends(get_db)):
     parking = db.query(Parking).filter(Parking.id == body.parking_id).first()
     if parking is None:
         raise HTTPException(status_code=404, detail="Parking not found")
 
     db_booking = Booking(
-        name       = body.name,
-        parking_id = body.parking_id,
-        car_plate  = body.car_plate,
-        days       = body.days,
-        date       = datetime.now(),
-        slot_code  = _next_slot_code(db),
-        user_id    = user_id,
+        name           = body.name,
+        parking_id     = body.parking_id,
+        parking_name   = parking.name,
+        price_per_hour = parking.price_per_hour,
+        car_plate      = body.car_plate,
+        days           = body.days,
+        date           = datetime.now(),
+        slot_code      = _next_slot_code(db),
+        user_id        = user_id,
     )
     db.add(db_booking)
     db.commit()

@@ -12,6 +12,6 @@ Base.metadata.create_all(bind=engine)
 
 app.include_router(users_router)
 app.include_router(plates_router)
-app.include_router(sessions_router)
 app.include_router(parkings_router)
+app.include_router(sessions_router)
 app.include_router(bookings_router)

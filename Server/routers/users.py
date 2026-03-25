@@ -24,6 +24,16 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
 
+# TODO This is a mockup just to make it work
+@router.get("/user/payment")
+def get_payment_method():
+    return {"id": "pm1", "last_four": "4242", "brand": "Visa"}
+
+# TODO This is a mockup just to make it work
+@router.get("/user/preferences")
+def get_preferences():
+    return {"max_distance_km": 5.0, "max_price_per_hour": 4.50}
+
 
 @router.get("/user/plates", response_model=list[PlateResponse])
 def get_plates(user_id: int, db: Session = Depends(get_db)):
