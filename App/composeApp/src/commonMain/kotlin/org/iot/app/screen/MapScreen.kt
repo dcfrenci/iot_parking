@@ -1,5 +1,7 @@
 package org.iot.app.screen
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -7,15 +9,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.composeapp.generated.resources.Res
-import app.composeapp.generated.resources.location_on
+import app.composeapp.generated.resources.close
 import app.composeapp.generated.resources.search
 import org.iot.app.domain.model.Parking
 import org.iot.app.screen.map.MapUiState
 import org.iot.app.screen.map.MapViewModel
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+
+// ── Root ──────────────────────────────────────────────────────────────────────
 
 @Composable
 fun MapScreen(viewModel: MapViewModel) {
@@ -23,7 +27,7 @@ fun MapScreen(viewModel: MapViewModel) {
     var searchQuery by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier
+        modifier            = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -31,57 +35,158 @@ fun MapScreen(viewModel: MapViewModel) {
         OutlinedTextField(
             value         = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder   = { Text("Search park / place") },
+            placeholder   = { Text("Search parking / place") },
             leadingIcon   = {
                 Icon(
                     painter            = painterResource(Res.drawable.search),
                     contentDescription = "Search"
                 )
             },
-            modifier  = Modifier.fillMaxWidth(),
+            modifier   = Modifier.fillMaxWidth(),
             singleLine = true,
             shape      = MaterialTheme.shapes.medium
         )
 
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(240.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Box(
-                modifier        = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        painter            = painterResource(Res.drawable.location_on),
-                        contentDescription = null,
-                        modifier           = Modifier.size(48.dp),
-                        tint               = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text      = "Map of parking\nclose to your location",
-                        style     = MaterialTheme.typography.bodyMedium,
-                        color     = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        }
-
-        Text(
-            text  = "Parking list based on position and preferences",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface
+        OsmMapCard(
+            uiState         = uiState,
+            onToggleExpand  = { viewModel.toggleMapExpanded() },
+            onSelectParking = { viewModel.selectParking(it) },
         )
 
-        MapContent(uiState = uiState, onRetry = { viewModel.loadParkings() })
+        if (!uiState.isMapExpanded) {
+            Text(
+                text  = "Parking list based on position and preferences",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            MapContent(uiState = uiState, onRetry = { viewModel.loadParkings() })
+        }
     }
 }
+
+// ── OSM Map Card ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun OsmMapCard(
+    uiState: MapUiState,
+    onToggleExpand: () -> Unit,
+    onSelectParking: (Parking?) -> Unit,
+) {
+    val cardHeight by animateDpAsState(
+        targetValue = if (uiState.isMapExpanded) 520.dp else 240.dp,
+        label       = "map_height"
+    )
+
+    Card(
+        modifier  = Modifier
+            .fillMaxWidth()
+            .height(cardHeight)
+            .clickable { onToggleExpand() },
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+
+            // Platform WebView rendering OSM/Leaflet — actual implementations in
+            // androidMain and iosMain (WebMapView.android.kt / WebMapView.ios.kt)
+            WebMapView(
+                modifier     = Modifier.fillMaxSize(),
+                centerLat    = uiState.mapCenterLat,
+                centerLon    = uiState.mapCenterLon,
+                zoom         = if (uiState.isMapExpanded) 15 else 14,
+                parkings     = uiState.parkings,
+                onPinClicked = { parking -> onSelectParking(parking) },
+            )
+
+            // Expand/collapse hint badge
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Text(
+                    text     = if (uiState.isMapExpanded) "Tap to collapse" else "Tap to expand",
+                    style    = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+
+            // Parking info popup (shown when a pin is tapped)
+            uiState.selectedParking?.let { parking ->
+                ParkingPopup(
+                    parking   = parking,
+                    onDismiss = { onSelectParking(null) },
+                    modifier  = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(12.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ParkingPopup(
+    parking: Parking,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier  = modifier.fillMaxWidth(),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Row(
+            modifier              = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment     = Alignment.Top
+        ) {
+            Column(
+                modifier            = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(text = parking.name,    style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text  = parking.address,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    LabeledInfo(label = "Price",     value = "€ ${parking.pricePerHour}/h")
+                    LabeledInfo(label = "Available", value = "${parking.availableSlots}/${parking.totalSlots} slots")
+                }
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    painter            = painterResource(Res.drawable.close),
+                    contentDescription = "Close"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LabeledInfo(label: String, value: String) {
+    Column {
+        Text(
+            text  = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text  = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+// ── Parking list ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun MapContent(uiState: MapUiState, onRetry: () -> Unit) {
@@ -118,21 +223,24 @@ private fun MapContent(uiState: MapUiState, onRetry: () -> Unit) {
 @Composable
 private fun ParkingListItem(parking: Parking) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier  = Modifier.fillMaxWidth(),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier            = Modifier
+            modifier              = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment   = Alignment.CenterVertically,
+            verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
                 Text(text = parking.name,    style = MaterialTheme.typography.bodyMedium)
-                Text(text = parking.address, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text  = parking.address,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
@@ -145,7 +253,33 @@ private fun ParkingListItem(parking: Parking) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(
+                    text  = "${parking.availableSlots}/${parking.totalSlots} slots",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (parking.availableSlots > 0)
+                        MaterialTheme.colorScheme.tertiary
+                    else
+                        MaterialTheme.colorScheme.error
+                )
             }
         }
     }
 }
+
+// ── expect declaration for the platform WebView ───────────────────────────────
+// NOTE: the `expect` keyword lives here in commonMain.
+// The `actual` implementations are:
+//   androidMain/.../screen/WebMapView.android.kt  (AndroidView + WebView)
+//   iosMain/.../screen/WebMapView.ios.kt          (UIKitView + WKWebView)
+// The iOS actual imports androidx.compose.ui.interop.UIKitView which is
+// iosMain-only — that import must NOT appear in this commonMain file.
+
+@Composable
+expect fun WebMapView(
+    modifier: Modifier,
+    centerLat: Double,
+    centerLon: Double,
+    zoom: Int,
+    parkings: List<Parking>,
+    onPinClicked: (Parking) -> Unit,
+)

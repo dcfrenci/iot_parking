@@ -16,6 +16,19 @@ data class PlateDto(
     val name: String,
     @SerialName("plate_text") val plateText: String,
     @SerialName("is_active") val isActive: Boolean,
+    @SerialName("image_uri") val imageUri: String? = null,
+)
+
+@Serializable
+data class CreatePlateDto(
+    val name: String,
+    @SerialName("plate_text") val plateText: String,
+    @SerialName("image_uri") val imageUri: String? = null,
+)
+
+@Serializable
+data class PlateActiveUpdate(
+    @SerialName("is_active") val isActive: Boolean,
 )
 
 @Serializable

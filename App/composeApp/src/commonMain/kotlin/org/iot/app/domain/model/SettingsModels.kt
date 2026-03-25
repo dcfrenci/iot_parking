@@ -11,6 +11,7 @@ data class Plate(
     val name: String,
     val plateText: String,
     val isActive: Boolean,
+    val imageUri: String? = null,   // local URI or remote URL
 )
 
 data class PaymentMethod(

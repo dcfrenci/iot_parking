@@ -58,6 +58,11 @@ kotlin {
             implementation(libs.ktor.client.logging)
 
             implementation("dev.icerock.moko:permissions-compose:0.18.0")
+
+            implementation("io.coil-kt.coil3:coil-compose:3.1.0")
+            implementation("io.coil-kt.coil3:coil-network-ktor3:3.1.0")
+
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

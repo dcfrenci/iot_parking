@@ -4,21 +4,25 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import app.composeapp.generated.resources.Res
-import app.composeapp.generated.resources.credit_card
-import app.composeapp.generated.resources.person
+import app.composeapp.generated.resources.*
 import org.iot.app.domain.model.PaymentMethod
 import org.iot.app.domain.model.Plate
 import org.iot.app.domain.model.User
+import org.iot.app.platform.rememberImagePicker
 import org.iot.app.screen.settings.SettingsUiState
 import org.iot.app.screen.settings.SettingsViewModel
 import org.jetbrains.compose.resources.painterResource
+
+// NOTE: AsyncImage (coil-compose-core) is used for loading plate images from URI.
+// Add io.coil-kt.coil3:coil-compose-core to your KMP dependencies.
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
@@ -26,37 +30,45 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 
     when {
         uiState.isLoading -> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         }
         uiState.error != null -> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text  = "Error: ${uiState.error}",
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Text("Error: ${uiState.error}", color = MaterialTheme.colorScheme.error)
                     Button(onClick = { viewModel.loadData() }) { Text("Try again") }
                 }
             }
         }
         else -> SettingsContent(
-            uiState        = uiState,
-            onTogglePlate  = { id, active -> viewModel.togglePlate(id, active) },
-            onSavePrefs    = { dist, price -> viewModel.updatePreferences(dist, price) }
+            uiState       = uiState,
+            onTogglePlate = { id, active -> viewModel.togglePlate(id, active) },
+            onSavePrefs   = { dist, price -> viewModel.updatePreferences(dist, price) },
+            onOpenAddPlate = { viewModel.openAddPlateDialog() },
+        )
+    }
+
+    if (uiState.isAddPlateDialogOpen) {
+        AddPlateDialog(
+            onConfirm = { name, text, uri -> viewModel.submitAddPlate(name, text, uri) },
+            onDismiss = { viewModel.closeAddPlateDialog() },
         )
     }
 }
 
+// ── Content ───────────────────────────────────────────────────────────────────
+
 @Composable
 private fun SettingsContent(
-    uiState       : SettingsUiState,
-    onTogglePlate : (String, Boolean) -> Unit,
-    onSavePrefs   : (Double, Double) -> Unit,
+    uiState: SettingsUiState,
+    onTogglePlate: (String, Boolean) -> Unit,
+    onSavePrefs: (Double, Double) -> Unit,
+    onOpenAddPlate: () -> Unit,
 ) {
     LazyColumn(
         modifier            = Modifier
@@ -67,14 +79,27 @@ private fun SettingsContent(
         item { SectionHeader("Account") }
         item { uiState.user?.let { AccountCard(user = it) } }
 
-        item { SectionHeader("Registered plate") }
+        item { SectionHeader("Registered plates") }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 uiState.plates.forEach { plate ->
                     RegisteredPlateCard(
-                        plate         = plate,
-                        onToggle      = { isActive -> onTogglePlate(plate.id, isActive) }
+                        plate    = plate,
+                        onToggle = { isActive -> onTogglePlate(plate.id, isActive) }
                     )
+                }
+                // Add plate button at the end of the list
+                OutlinedButton(
+                    onClick  = onOpenAddPlate,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        painter            = painterResource(Res.drawable.add),
+                        contentDescription = null,
+                        modifier           = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add plate")
                 }
             }
         }
@@ -87,7 +112,7 @@ private fun SettingsContent(
             ParkingPreferencesCard(
                 initialDistance = uiState.preferences.maxDistanceKm,
                 initialPrice    = uiState.preferences.maxPricePerHour,
-                onSave          = onSavePrefs
+                onSave          = onSavePrefs,
             )
         }
     }
@@ -102,6 +127,8 @@ private fun SectionHeader(title: String) {
     )
 }
 
+// ── Account Card ──────────────────────────────────────────────────────────────
+
 @Composable
 private fun AccountCard(user: User) {
     Card(
@@ -110,16 +137,12 @@ private fun AccountCard(user: User) {
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier              = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier              = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
-                modifier         = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
+                modifier         = Modifier.size(48.dp).clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
@@ -142,10 +165,12 @@ private fun AccountCard(user: User) {
     }
 }
 
+// ── Registered Plate Card ─────────────────────────────────────────────────────
+
 @Composable
 private fun RegisteredPlateCard(
-    plate    : Plate,
-    onToggle : (Boolean) -> Unit,
+    plate: Plate,
+    onToggle: (Boolean) -> Unit,
 ) {
     var checked by remember(plate.id) { mutableStateOf(plate.isActive) }
 
@@ -155,9 +180,7 @@ private fun RegisteredPlateCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
-            modifier            = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier            = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
@@ -171,34 +194,66 @@ private fun RegisteredPlateCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (checked) MaterialTheme.colorScheme.tertiary
-                                else MaterialTheme.colorScheme.error
-                            )
+                        modifier = Modifier.size(10.dp).clip(CircleShape).background(
+                            if (checked) MaterialTheme.colorScheme.tertiary
+                            else         MaterialTheme.colorScheme.error
+                        )
                     )
                     Text(
                         text  = if (checked) "Active" else "Inactive",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (checked) MaterialTheme.colorScheme.tertiary
-                                else MaterialTheme.colorScheme.error
+                                else         MaterialTheme.colorScheme.error
                     )
                 }
             }
 
-            Surface(
-                shape    = MaterialTheme.shapes.small,
-                color    = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.wrapContentWidth()
+            // Plate image (if present) and plate text side by side
+            Row(
+                verticalAlignment     = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text     = plate.plateText,
-                    style    = MaterialTheme.typography.labelLarge,
-                    color    = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                )
+                if (plate.imageUri != null) {
+                    // Using coil3 AsyncImage for KMP-compatible image loading
+                    coil3.compose.AsyncImage(
+                        model             = plate.imageUri,
+                        contentDescription = "Plate image",
+                        modifier          = Modifier
+                            .size(width = 100.dp, height = 52.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        contentScale      = ContentScale.Crop,
+                        error             = painterResource(Res.drawable.image),
+                    )
+                } else {
+                    // Placeholder box
+                    Box(
+                        modifier         = Modifier
+                            .size(width = 100.dp, height = 52.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter            = painterResource(Res.drawable.image),
+                            contentDescription = "No image",
+                            tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier           = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                Surface(
+                    shape    = MaterialTheme.shapes.small,
+                    color    = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.wrapContentWidth()
+                ) {
+                    Text(
+                        text     = plate.plateText,
+                        style    = MaterialTheme.typography.labelLarge,
+                        color    = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
             }
 
             Row(
@@ -207,7 +262,7 @@ private fun RegisteredPlateCard(
                 verticalAlignment     = Alignment.CenterVertically
             ) {
                 Text(
-                    text  = "State",
+                    text  = "Active",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -223,6 +278,8 @@ private fun RegisteredPlateCard(
     }
 }
 
+// ── Payment Method Card ───────────────────────────────────────────────────────
+
 @Composable
 private fun PaymentMethodCard(payment: PaymentMethod) {
     Card(
@@ -231,9 +288,7 @@ private fun PaymentMethodCard(payment: PaymentMethod) {
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier              = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier              = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment     = Alignment.CenterVertically
         ) {
@@ -252,18 +307,18 @@ private fun PaymentMethodCard(payment: PaymentMethod) {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            TextButton(onClick = { /* TODO: change payment */ }) {
-                Text("Change")
-            }
+            TextButton(onClick = { /* TODO: change payment */ }) { Text("Change") }
         }
     }
 }
 
+// ── Parking Preferences Card ──────────────────────────────────────────────────
+
 @Composable
 private fun ParkingPreferencesCard(
-    initialDistance : Double,
-    initialPrice    : Double,
-    onSave          : (Double, Double) -> Unit,
+    initialDistance: Double,
+    initialPrice: Double,
+    onSave: (Double, Double) -> Unit,
 ) {
     var distance by remember(initialDistance) { mutableStateOf((initialDistance / 5f).toFloat()) }
     var price    by remember(initialPrice)    { mutableStateOf((initialPrice / 10f).toFloat()) }
@@ -274,9 +329,7 @@ private fun ParkingPreferencesCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
-            modifier            = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier            = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -286,48 +339,123 @@ private fun ParkingPreferencesCard(
                 ) {
                     Text("Distance", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text  = "${(kotlin.math.round(distance * 5 * 10) / 10.0)} km",
+                        text  = "${kotlin.math.round(distance * 5 * 10) / 10.0} km",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Slider(
-                    value         = distance,
-                    onValueChange = { distance = it },
-                    modifier      = Modifier.fillMaxWidth()
-                )
+                Slider(value = distance, onValueChange = { distance = it }, modifier = Modifier.fillMaxWidth())
             }
-
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier              = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Price", style = MaterialTheme.typography.bodyMedium)
+                    Text("Max price", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text  = "€ ${(kotlin.math.round(price * 10 * 10) / 10.0)} / h",
+                        text  = "€ ${kotlin.math.round(price * 10 * 10) / 10.0}/h",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Slider(
-                    value         = price,
-                    onValueChange = { price = it },
-                    modifier      = Modifier.fillMaxWidth()
-                )
+                Slider(value = price, onValueChange = { price = it }, modifier = Modifier.fillMaxWidth())
             }
-
             Button(
                 onClick  = {
                     onSave(
                         kotlin.math.round(distance * 5 * 10) / 10.0,
-                        kotlin.math.round(price * 10 * 10) / 10.0
+                        kotlin.math.round(price * 10 * 10) / 10.0,
                     )
                 },
                 modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("Save")
-            }
+            ) { Text("Save") }
         }
     }
+}
+
+// ── Add Plate Dialog ──────────────────────────────────────────────────────────
+
+@Composable
+private fun AddPlateDialog(
+    onConfirm: (name: String, plateText: String, imageUri: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name      by remember { mutableStateOf("") }
+    var plateText by remember { mutableStateOf("") }
+    var imageUri  by remember { mutableStateOf<String?>(null) }
+    var showSourceSheet by remember { mutableStateOf(false) }
+
+    val imagePicker = rememberImagePicker { uri -> imageUri = uri }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title   = { Text("Add new plate") },
+        text    = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value         = name,
+                    onValueChange = { name = it },
+                    label         = { Text("Plate name (e.g. My Car)") },
+                    modifier      = Modifier.fillMaxWidth(),
+                    singleLine    = true,
+                )
+                OutlinedTextField(
+                    value         = plateText,
+                    onValueChange = { plateText = it.uppercase() },
+                    label         = { Text("Plate number") },
+                    modifier      = Modifier.fillMaxWidth(),
+                    singleLine    = true,
+                )
+
+                // Image preview / picker
+                if (imageUri != null) {
+                    coil3.compose.AsyncImage(
+                        model             = imageUri,
+                        contentDescription = "Plate image preview",
+                        modifier          = Modifier
+                            .fillMaxWidth()
+                            .height(80.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale      = ContentScale.Crop,
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick  = { imagePicker.launch() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            painter            = painterResource(Res.drawable.photo_library),
+                            contentDescription = null,
+                            modifier           = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Gallery")
+                    }
+                    OutlinedButton(
+                        onClick  = { imagePicker.launch() }, // on real impl: separate camera launcher
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            painter            = painterResource(Res.drawable.photo_camera),
+                            contentDescription = null,
+                            modifier           = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Camera")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick  = { onConfirm(name, plateText, imageUri) },
+                enabled  = name.isNotBlank() && plateText.isNotBlank()
+            ) { Text("Add") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

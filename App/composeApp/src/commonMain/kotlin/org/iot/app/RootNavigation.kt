@@ -2,30 +2,25 @@ package org.iot.app
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.runtime.getValue
 import app.composeapp.generated.resources.Res
 import app.composeapp.generated.resources.home
-import app.composeapp.generated.resources.settings
 import app.composeapp.generated.resources.map
+import app.composeapp.generated.resources.settings
 import org.iot.app.domain.usecase.*
+import org.iot.app.screen.HomeScreen
+import org.iot.app.screen.MapScreen
 import org.iot.app.screen.home.HomeViewModel
 import org.iot.app.screen.map.MapViewModel
 import org.iot.app.screen.settings.SettingsViewModel
-import org.iot.app.screen.HomeScreen
-import org.iot.app.screen.MapScreen
 import org.iot.app.screens.SettingsScreen
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-
-
-// ── Screen sealed class ───────────────────────────────────────────────────────
 
 sealed class Screen(
     val route: String,
@@ -37,19 +32,20 @@ sealed class Screen(
     data object Settings : Screen("settings", "Setting", Res.drawable.settings)
 }
 
-// ── Root Navigation ───────────────────────────────────────────────────────────
-
 @Composable
 fun RootNavigation(
-    getNearbyParkings : GetNearbyParkingsUseCase,
-    getCurrentParking : GetCurrentParkingUseCase,
-    getBookings       : GetBookingsUseCase,
-    getUser           : GetUserUseCase,
-    getPlates         : GetPlatesUseCase,
-    setPlateActive    : SetPlateActiveUseCase,
-    getPaymentMethod  : GetPaymentMethodUseCase,
-    getPreferences    : GetPreferencesUseCase,
-    savePreferences   : SavePreferencesUseCase,
+    getNearbyParkings  : GetNearbyParkingsUseCase,
+    getCurrentParking  : GetCurrentParkingUseCase,
+    getBookings        : GetBookingsUseCase,
+    createBooking      : CreateBookingUseCase,
+    updateBookingPlate : UpdateBookingPlateUseCase,
+    getUser            : GetUserUseCase,
+    getPlates          : GetPlatesUseCase,
+    setPlateActive     : SetPlateActiveUseCase,
+    addPlate           : AddPlateUseCase,
+    getPaymentMethod   : GetPaymentMethodUseCase,
+    getPreferences     : GetPreferencesUseCase,
+    savePreferences    : SavePreferencesUseCase,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -57,15 +53,28 @@ fun RootNavigation(
 
     val bottomNavScreens = listOf(Screen.Map, Screen.Home, Screen.Settings)
 
-    // ── ViewModels (creati una volta sola per tutta la sessione) ──────────────
     val mapViewModel = remember {
         MapViewModel(getNearbyParkings)
     }
     val homeViewModel = remember {
-        HomeViewModel(getCurrentParking, getBookings)
+        HomeViewModel(
+            getCurrentParking  = getCurrentParking,
+            getBookings        = getBookings,
+            getPlates          = getPlates,
+            createBooking      = createBooking,
+            updateBookingPlate = updateBookingPlate,
+        )
     }
     val settingsViewModel = remember {
-        SettingsViewModel(getUser, getPlates, setPlateActive, getPaymentMethod, getPreferences, savePreferences)
+        SettingsViewModel(
+            getUser          = getUser,
+            getPlates        = getPlates,
+            setPlateActive   = setPlateActive,
+            addPlate         = addPlate,
+            getPaymentMethod = getPaymentMethod,
+            getPreferences   = getPreferences,
+            savePreferences  = savePreferences,
+        )
     }
 
     Scaffold(

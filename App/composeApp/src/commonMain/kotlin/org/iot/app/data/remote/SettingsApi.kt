@@ -4,10 +4,13 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
+import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import org.iot.app.data.remote.dto.CreatePlateDto
 import org.iot.app.data.remote.dto.ParkingPreferencesDto
 import org.iot.app.data.remote.dto.PaymentMethodDto
+import org.iot.app.data.remote.dto.PlateActiveUpdate
 import org.iot.app.data.remote.dto.PlateDto
 import org.iot.app.data.remote.dto.UserDto
 
@@ -21,9 +24,14 @@ class SettingsApi(private val client: HttpClient) {
 
     suspend fun setPlateActive(plateId: String, isActive: Boolean) {
         client.patch("user/plates/$plateId") {
-            setBody(mapOf("is_active" to isActive))
+            setBody(PlateActiveUpdate(isActive))
         }
     }
+
+    suspend fun addPlate(dto: CreatePlateDto): PlateDto =
+        client.post("user/plates") {
+            setBody(dto)
+        }.body()
 
     suspend fun getPaymentMethod(): PaymentMethodDto =
         client.get("user/payment").body()
