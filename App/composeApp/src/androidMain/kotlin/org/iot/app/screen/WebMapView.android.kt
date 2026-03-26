@@ -1,21 +1,19 @@
 package org.iot.app.screen
 
+import android.annotation.SuppressLint
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import org.iot.app.domain.model.Parking
 
-/**
- * Android actual for the `expect fun WebMapView` declared in MapScreen.kt (commonMain).
- * File location: androidMain/kotlin/org/iot/app/screen/WebMapView.android.kt
- *
- * If you get "Conflicting overloads", make sure there is NO other file in any
- * source set that also declares `actual fun WebMapView(...)`.
- */
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 actual fun WebMapView(
     modifier: Modifier,
@@ -25,28 +23,52 @@ actual fun WebMapView(
     parkings: List<Parking>,
     onPinClicked: (Parking) -> Unit,
 ) {
-    val stableParkings = remember(parkings) { parkings }
+    val currentOnPinClicked by rememberUpdatedState(onPinClicked)
+    val currentParkings by rememberUpdatedState(parkings)
 
     AndroidView(
         modifier = modifier,
-        factory  = { context ->
+        factory = { context ->
             WebView(context).apply {
+                // 1. Force the native view to fill the Compose space
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
-                settings.setSupportZoom(true)
-                settings.builtInZoomControls = true
+                settings.setSupportZoom(false)
+                settings.builtInZoomControls = false
                 settings.displayZoomControls = false
+
+                webViewClient = WebViewClient()
+                // 2. WebChromeClient is often required for HTML5 canvas/map rendering
+                webChromeClient = WebChromeClient()
+
+                // 3. Use the named class to prevent minification/ProGuard issues
                 addJavascriptInterface(
-                    MapJsBridge(stableParkings, onPinClicked),
+                    MapJsBridge { parkingId ->
+                        currentParkings.firstOrNull { it.id == parkingId }
+                            ?.let { currentOnPinClicked(it) }
+                    },
                     "AndroidBridge"
                 )
-                webViewClient = WebViewClient()
+
+                // 4. Provide a valid Base URL instead of null to prevent CORS/Origin blocking
+                loadDataWithBaseURL(
+                    "https://unpkg.com",
+                    buildMapHtml(centerLat, centerLon, zoom, parkings),
+                    "text/html",
+                    "UTF-8",
+                    null
+                )
             }
         },
         update = { webView ->
             webView.loadDataWithBaseURL(
                 "https://unpkg.com",
-                buildMapHtml(centerLat, centerLon, zoom, stableParkings),
+                buildMapHtml(centerLat, centerLon, zoom, currentParkings),
                 "text/html",
                 "UTF-8",
                 null
@@ -57,12 +79,11 @@ actual fun WebMapView(
 
 // Named class required by Android 4.2+ for @JavascriptInterface to be visible at runtime
 private class MapJsBridge(
-    private val parkings: List<Parking>,
-    private val onPinClicked: (Parking) -> Unit,
+    private val onParkingSelectedAction: (String) -> Unit
 ) {
     @JavascriptInterface
     fun onParkingSelected(parkingId: String) {
-        parkings.firstOrNull { it.id == parkingId }?.let { onPinClicked(it) }
+        onParkingSelectedAction(parkingId)
     }
 }
 
@@ -74,7 +95,7 @@ private fun buildMapHtml(
 ): String {
     val markers = parkings.joinToString("\n") { p ->
         val color = if (p.availableSlots > 0) "#4CAF50" else "#F44336"
-        val name  = p.name.replace("'", "\\'")
+        val name = p.name.replace("'", "\\'")
         """L.circleMarker([${p.latitude},${p.longitude}],{radius:12,color:'$color',fillColor:'$color',fillOpacity:0.85,weight:2})
           .bindPopup('<b>$name</b><br/>€${p.pricePerHour}/h · ${p.availableSlots}/${p.totalSlots} slots')
           .on('click',function(){AndroidBridge.onParkingSelected('${p.id}');})
@@ -83,10 +104,8 @@ private fun buildMapHtml(
     return """<!DOCTYPE html><html><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GqBg=" crossorigin=""></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>*{margin:0;padding:0}html,body,#map{width:100%;height:100%}</style>
 </head><body><div id="map"></div><script>
 var map=L.map('map',{zoomControl:true}).setView([$centerLat,$centerLon],$zoom);

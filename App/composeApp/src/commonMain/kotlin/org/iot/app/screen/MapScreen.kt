@@ -77,6 +77,11 @@ private fun OsmMapCard(
         label       = "map_height"
     )
 
+    val stableCenterLat  = remember(uiState.mapCenterLat)  { uiState.mapCenterLat }
+    val stableCenterLon  = remember(uiState.mapCenterLon)  { uiState.mapCenterLon }
+    val stableZoom       = remember(uiState.isMapExpanded) { if (uiState.isMapExpanded) 15 else 14 }
+    val stableParkings   = remember(uiState.parkings)      { uiState.parkings }
+
     Card(
         modifier  = Modifier
             .fillMaxWidth()
@@ -87,14 +92,12 @@ private fun OsmMapCard(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
 
-            // Platform WebView rendering OSM/Leaflet — actual implementations in
-            // androidMain and iosMain (WebMapView.android.kt / WebMapView.ios.kt)
             WebMapView(
                 modifier     = Modifier.fillMaxSize(),
-                centerLat    = uiState.mapCenterLat,
-                centerLon    = uiState.mapCenterLon,
-                zoom         = if (uiState.isMapExpanded) 15 else 14,
-                parkings     = uiState.parkings,
+                centerLat    = stableCenterLat,
+                centerLon    = stableCenterLon,
+                zoom         = stableZoom,
+                parkings     = stableParkings,
                 onPinClicked = { parking -> onSelectParking(parking) },
             )
 
