@@ -1,0 +1,454 @@
+openapi: 3.0.4
+info:
+  title: IotParking API
+  description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.
+  version: 0.1.9
+
+servers:
+  - url: http://10.0.2.2:8000/v1
+    description: Optional server description, e.g. Main (production) server
+
+paths:
+  /dummy:
+    get:
+      summary: Returns a list of users.
+      description: Optional extended description in CommonMark or HTML.
+      responses:
+        "200": # status code
+          description: A JSON array of user names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /login:
+    get:
+      summary: Get user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, pass]
+              properties:
+                email:
+                  type: string
+                pass:
+                  type: string
+      responses:
+        "200":
+          description: Details of the user
+          content:
+            application/json:
+              schemas:
+                $ref: '#/components/schemas/User'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+    post:
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, pass]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                pass:
+                  type: string
+      responses:
+        "201":
+          description: User Created
+          content:
+            application/json:
+              schemas:
+                $ref: '#/components/schemas/User'
+        "409":
+          $ref: '#/components/responses/AlreadyExists'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+    patch:
+      summary: Update user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, name, email, new_pass, old_pass]
+              properties:
+                account_id:
+                  type: integer
+                name:
+                  type: string
+                email:
+                  type: string
+                new_pass:
+                  type: string
+                old_pass:
+                  type: string
+      responses:
+        "200":
+          description: User Updated
+          content:
+            application/json:
+              schemas:
+                $ref: '#/components/schemas/User'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+    delete:
+      summary: Delete user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id]
+              properties:
+                account_id:
+                  type: integer
+      responses:
+        "200":
+          description: User Deleted
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+  /user:
+    get:
+      summary: Get user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id]
+              properties:
+                account_id:
+                  type: integer
+      responses:
+        "200":
+          description: Details of the user
+          content:
+            application/json:
+              schemas:
+                $ref: '#/components/schemas/User'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+  
+  /user/plates:
+    get:
+      summary: Get user's plates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id]
+              properties:
+                account_id:
+                  type: integer
+      responses:
+        "200":
+          description: Plates of the user
+          content:
+            application/json:
+              schemas:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plate'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+    
+    post:
+      summary: Create new user's plates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, plate_text, plate_name, image_uri]
+              properties:
+                account_id:
+                  type: integer
+                plate_text:
+                  type: string
+                plate_name:
+                  type: string
+                image_uri:
+                  type: string
+      responses:
+        "201":
+          description: Plate created
+          content:
+            application/json:
+              schemas:
+                $ref: '#/components/schemas/Plate'
+        "409":
+          $ref: '#/components/responses/AlreadyExists'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+    delete:
+      summary: Get user's plates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, plate_id]
+              properties:
+                account_id:
+                  type: integer
+                plate_id:
+                  type: integer
+      responses:
+        "200":
+          description: Plate deleted
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+  
+  /user/payment:
+    get:
+    post:
+
+  /user/preferences/distance:
+    get:
+    post:
+  
+  /user/preferences/price:
+    get:
+    post:
+
+
+  /paying:
+    get:
+  
+  /parkings/all:
+    get:
+    post:
+    patch:
+    delete:
+  
+  /parkings/range:
+    get:
+  
+
+  /bookings:
+    get:
+    post:
+    patch:
+    delete:
+
+
+
+### components ###
+
+components:
+  schemas:
+    User:
+      type: object
+      requierd: 
+        - account_id
+        - name
+        - email
+      properties:
+        account_id:
+          type: integer
+          description: "id of the account"
+        name:
+          type: string
+          description: "name of the user"
+        email:
+          type: string
+          description: "email of the user"
+  
+    Plate:
+      type: object
+      required:
+        - plate_id
+        - plate_text
+        - plate_name
+        - is_active
+        - image_uri
+      properties:
+        plate_id: 
+          type: integer
+          description: "id of the plate"
+        plate_text:
+          type: string
+          description: "text content of the plate"
+        plate_name:
+          type: string
+          description: "name of the car associated with the plate"
+        is_active:
+          type: boolean
+          description: "state of the plate"
+        image_uri:
+          type: string
+          description: "uri of the image of the plate"
+    
+    Payment:
+      type: object
+      required:
+        - circuit
+        - card_number
+      properties:
+        circuit:
+          type: string
+          description: "payment circuit"
+        card_number:
+          type: integer
+          description: "card number"
+    
+    Parking:
+      type: object
+      required:
+        - parking_id
+        - parking_name
+        - total_slot
+        - available_slot
+        - price_per_hour
+        - lat
+        - lon
+        - address
+      properties:
+        parking_id:
+          type: integer
+          description: "id of the parking"
+        parking_name:
+          type: string
+          description: "name of the parking"
+        total_slot:
+          type: integer
+          description: "number of total slots"
+        available_slot:
+          type: integer
+          description: "number of available slots"
+        price_per_hour:
+          type: number
+          description: "price per hour of the parking"
+        lat:
+          type: number
+          description: "latitude"
+        lon:
+          type: number
+          description: "longitude"
+        address:
+          type: string
+          description: "address of the parking"
+  
+    Booking:
+      type: object
+      required:
+        - booking_id
+        - booking_name
+        - parking
+        - plate
+        - date
+        - days
+        - slot_code
+      properties:
+        booking_id:
+          type: integer
+          description: "id of the booking"
+        booking_name:
+          type: integer
+          description: "name of the booking"
+        parking:
+          $ref: '#/components/schemas/Parking'
+          description: "selected parking"
+        plate:
+          $ref: '#/components/schemas/Plate'
+          description: "selected plate"
+        date:
+          type: string
+          format: date
+          description: "date of the booking"
+        days:
+          type: integer
+          description: "number of days of the booking"
+        slot_code:
+          type: integer
+          description: "code of the parking slot"
+  
+    ValidationError:
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      properties:
+        loc:
+          description: "Posizione dell'errore (es. body, query, o indice dell'array)"
+          type: array
+          items:
+            oneOf:
+              - type: string
+              - type: integer
+        msg:
+          type: string
+          description: "Messaggio di errore leggibile"
+        type:
+          type: string
+          description: "Codice del tipo di errore"
+        input:
+          nullable: true
+          description: "Il valore che ha causato l'errore"
+        ctx:
+          type: object
+          description: "Contesto aggiuntivo per l'errore"
+
+    ConflictError:  
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: integer
+          example: 409
+        message:
+          type: string
+        field:
+          type: string
+          description: "Il campo che ha causato il duplicato"
+          example: "email"
+
+
+    HTTPValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
+  responses:
+    ValidationErrorResponse:
+      description: "Errore di Validazione (422)"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/HTTPValidationError'
+
+    AlreadyExists:
+      description: "Not able to perform the action: already exits"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConflictError'
+  
