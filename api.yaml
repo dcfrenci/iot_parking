@@ -1,31 +1,20 @@
 openapi: 3.0.4
 info:
   title: IotParking API
-  description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.
+  description: REST API for the IotParking platform. Manages users, license plates, payments, preferences, parkings, active parking sessions, and bookings.
   version: 0.1.9
 
 servers:
   - url: http://10.0.2.2:8000/v1
-    description: Optional server description, e.g. Main (production) server
+    description: Local development server
 
 paths:
-  /dummy:
-    get:
-      summary: Returns a list of users.
-      description: Optional extended description in CommonMark or HTML.
-      responses:
-        "200": # status code
-          description: A JSON array of user names
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
+
+  # ── Authentication & Registration ──────────────────────────────────────────
 
   /login:
-    get:
-      summary: Get user
+    post:
+      summary: Authenticate user
       requestBody:
         required: true
         content:
@@ -36,18 +25,20 @@ paths:
               properties:
                 email:
                   type: string
+                  format: email
                 pass:
                   type: string
       responses:
         "200":
-          description: Details of the user
+          description: Authenticated user details
           content:
             application/json:
-              schemas:
+              schema:
                 $ref: '#/components/schemas/User'
         "422":
           $ref: '#/components/responses/ValidationErrorResponse'
 
+  /register:
     post:
       summary: Create a new user
       requestBody:
@@ -62,17 +53,39 @@ paths:
                   type: string
                 email:
                   type: string
+                  format: email
                 pass:
                   type: string
       responses:
         "201":
-          description: User Created
+          description: User created
           content:
             application/json:
-              schemas:
+              schema:
                 $ref: '#/components/schemas/User'
         "409":
           $ref: '#/components/responses/AlreadyExists'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+  # ── User ───────────────────────────────────────────────────────────────────
+
+  /user:
+    get:
+      summary: Get user details
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
         "422":
           $ref: '#/components/responses/ValidationErrorResponse'
 
@@ -84,7 +97,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [account_id, name, email, new_pass, old_pass]
+              required: [account_id]
               properties:
                 account_id:
                   type: integer
@@ -92,88 +105,60 @@ paths:
                   type: string
                 email:
                   type: string
+                  format: email
                 new_pass:
                   type: string
                 old_pass:
                   type: string
       responses:
         "200":
-          description: User Updated
+          description: User updated
           content:
             application/json:
-              schemas:
+              schema:
                 $ref: '#/components/schemas/User'
         "422":
           $ref: '#/components/responses/ValidationErrorResponse'
 
     delete:
       summary: Delete user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [account_id]
-              properties:
-                account_id:
-                  type: integer
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
       responses:
         "200":
-          description: User Deleted
+          description: User deleted
         "422":
           $ref: '#/components/responses/ValidationErrorResponse'
 
-  /user:
-    get:
-      summary: Get user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [account_id]
-              properties:
-                account_id:
-                  type: integer
-      responses:
-        "200":
-          description: Details of the user
-          content:
-            application/json:
-              schemas:
-                $ref: '#/components/schemas/User'
-        "422":
-          $ref: '#/components/responses/ValidationErrorResponse'
-  
+  # ── Plates ─────────────────────────────────────────────────────────────────
+
   /user/plates:
     get:
       summary: Get user's plates
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [account_id]
-              properties:
-                account_id:
-                  type: integer
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
       responses:
         "200":
-          description: Plates of the user
+          description: List of user's plates
           content:
             application/json:
-              schemas:
+              schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Plate'
         "422":
           $ref: '#/components/responses/ValidationErrorResponse'
-    
+
     post:
-      summary: Create new user's plates
+      summary: Add a new plate for the user
       requestBody:
         required: true
         content:
@@ -195,87 +180,456 @@ paths:
           description: Plate created
           content:
             application/json:
-              schemas:
+              schema:
                 $ref: '#/components/schemas/Plate'
         "409":
           $ref: '#/components/responses/AlreadyExists'
         "422":
           $ref: '#/components/responses/ValidationErrorResponse'
+
     delete:
-      summary: Get user's plates
+      summary: Delete user's plate
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: plate_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Plate deleted
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+  # ── Payment ────────────────────────────────────────────────────────────────
+
+  /user/payment:
+    get:
+      summary: Get user's payment method
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User's payment method
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+    patch:
+      summary: Update user's payment method
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [account_id, plate_id]
+              required: [account_id, payment]
               properties:
                 account_id:
                   type: integer
-                plate_id:
-                  type: integer
+                payment:
+                  $ref: '#/components/schemas/Payment'
       responses:
         "200":
-          description: Plate deleted
+          description: Updated payment method
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
         "422":
           $ref: '#/components/responses/ValidationErrorResponse'
-  
-  /user/payment:
-    get:
-    post:
+
+  # ── Preferences ────────────────────────────────────────────────────────────
 
   /user/preferences/distance:
     get:
-    post:
-  
+      summary: Get user's distance preference
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User's preferred maximum distance
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [distance_value]
+                properties:
+                  distance_value:
+                    type: number
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+    patch:
+      summary: Update user's distance preference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, new_distance]
+              properties:
+                account_id:
+                  type: integer
+                new_distance:
+                  type: number
+      responses:
+        "200":
+          description: Updated preferred distance
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [distance_value]
+                properties:
+                  distance_value:
+                    type: number
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
   /user/preferences/price:
     get:
-    post:
+      summary: Get user's price preference
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User's preferred maximum price
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [price_value]
+                properties:
+                  price_value:
+                    type: number
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
 
+    patch:
+      summary: Update user's price preference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, new_price]
+              properties:
+                account_id:
+                  type: integer
+                new_price:
+                  type: number
+      responses:
+        "200":
+          description: Updated preferred price
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [price_value]
+                properties:
+                  price_value:
+                    type: number
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+  # ── Active parking sessions ────────────────────────────────────────────────
 
   /paying:
     get:
-  
+      summary: Get user's currently active parking sessions
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of user's currently active parking sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Parked'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+  # ── Parkings ───────────────────────────────────────────────────────────────
+
   /parkings/all:
     get:
+      summary: Get a summary list of all parkings
+      responses:
+        "200":
+          description: List of all parkings (summary)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    parking_id:
+                      type: integer
+                    parking_name:
+                      type: string
+                    address:
+                      type: string
+
+  /parkings:
+    get:
+      summary: Get parking details
+      parameters:
+        - name: parking_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Parking details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parking'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
     post:
+      summary: Create a new parking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parking]
+              properties:
+                parking:
+                  $ref: "#/components/schemas/Parking"
+      responses:
+        "201":
+          description: Parking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parking'
+        "409":
+          $ref: '#/components/responses/AlreadyExists'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
     patch:
+      summary: Update parking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parking]
+              properties:
+                parking:
+                  $ref: "#/components/schemas/Parking"
+      responses:
+        "200":
+          description: Parking updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parking'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
     delete:
-  
+      summary: Delete parking
+      parameters:
+        - name: parking_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Parking deleted
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
   /parkings/range:
     get:
-  
+      summary: Get parkings within a given range from a position
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: range
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of parkings within the specified range, with distances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    parking:
+                      $ref: '#/components/schemas/Parking'
+                    distance:
+                      type: number
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
+  # ── Bookings ───────────────────────────────────────────────────────────────
 
   /bookings:
     get:
+      summary: Get user's bookings
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of user's bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
     post:
+      summary: Create a new booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, booking]
+              properties:
+                account_id:
+                  type: integer
+                booking:
+                  $ref: '#/components/schemas/Booking'
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        "409":
+          $ref: '#/components/responses/AlreadyExists'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
     patch:
+      summary: Update user's booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, booking]
+              properties:
+                account_id:
+                  type: integer
+                booking:
+                  $ref: '#/components/schemas/Booking'
+      responses:
+        "200":
+          description: Updated booking detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
+
     delete:
-
-
+      summary: Delete user's booking
+      parameters:
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: booking_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Booking deleted
+        "422":
+          $ref: '#/components/responses/ValidationErrorResponse'
 
 ### components ###
 
 components:
   schemas:
+
     User:
       type: object
-      requierd: 
+      required:
         - account_id
         - name
         - email
       properties:
         account_id:
           type: integer
-          description: "id of the account"
+          description: "Unique account identifier"
         name:
           type: string
-          description: "name of the user"
+          description: "Full name of the user"
         email:
           type: string
-          description: "email of the user"
-  
+          format: email
+          description: "Email address of the user"
+
     Plate:
       type: object
       required:
@@ -285,22 +639,22 @@ components:
         - is_active
         - image_uri
       properties:
-        plate_id: 
+        plate_id:
           type: integer
-          description: "id of the plate"
+          description: "Unique identifier of the plate"
         plate_text:
           type: string
-          description: "text content of the plate"
+          description: "License plate number (e.g. AB123CD)"
         plate_name:
           type: string
-          description: "name of the car associated with the plate"
+          description: "Friendly name for the vehicle associated with the plate"
         is_active:
           type: boolean
-          description: "state of the plate"
+          description: "Whether this plate is currently active"
         image_uri:
           type: string
-          description: "uri of the image of the plate"
-    
+          description: "URI of the plate image"
+
     Payment:
       type: object
       required:
@@ -309,11 +663,11 @@ components:
       properties:
         circuit:
           type: string
-          description: "payment circuit"
+          description: "Payment circuit (e.g. Visa, Mastercard)"
         card_number:
-          type: integer
-          description: "card number"
-    
+          type: string
+          description: "Card number"
+
     Parking:
       type: object
       required:
@@ -328,29 +682,55 @@ components:
       properties:
         parking_id:
           type: integer
-          description: "id of the parking"
+          description: "Unique identifier of the parking"
         parking_name:
           type: string
-          description: "name of the parking"
+          description: "Name of the parking"
         total_slot:
           type: integer
-          description: "number of total slots"
+          description: "Total number of parking slots"
         available_slot:
           type: integer
-          description: "number of available slots"
+          description: "Number of currently available slots"
         price_per_hour:
           type: number
-          description: "price per hour of the parking"
+          description: "Hourly rate of the parking"
         lat:
           type: number
-          description: "latitude"
+          description: "Latitude coordinate"
         lon:
           type: number
-          description: "longitude"
+          description: "Longitude coordinate"
         address:
           type: string
-          description: "address of the parking"
-  
+          description: "Street address of the parking"
+
+    Parked:
+      type: object
+      required:
+        - plate
+        - parking
+        - entry_time
+        - amount
+        - is_paid
+      properties:
+        plate:
+          $ref: '#/components/schemas/Plate'
+          description: "Details of the parked vehicle's plate"
+        parking:
+          $ref: '#/components/schemas/Parking'
+          description: "Details of the parking facility"
+        entry_time:
+          type: string
+          format: date-time
+          description: "Date and time the vehicle entered the parking"
+        amount:
+          type: number
+          description: "Amount due since entry"
+        is_paid:
+          type: boolean
+          description: "Whether the session has been paid"
+
     Booking:
       type: object
       required:
@@ -364,27 +744,27 @@ components:
       properties:
         booking_id:
           type: integer
-          description: "id of the booking"
+          description: "Unique identifier of the booking"
         booking_name:
-          type: integer
-          description: "name of the booking"
+          type: string
+          description: "Friendly name of the booking"
         parking:
           $ref: '#/components/schemas/Parking'
-          description: "selected parking"
+          description: "Selected parking facility"
         plate:
           $ref: '#/components/schemas/Plate'
-          description: "selected plate"
+          description: "Selected plate for the booking"
         date:
           type: string
           format: date
-          description: "date of the booking"
+          description: "Start date of the booking"
         days:
           type: integer
-          description: "number of days of the booking"
+          description: "Duration of the booking in days"
         slot_code:
           type: integer
-          description: "code of the parking slot"
-  
+          description: "Code of the reserved parking slot"
+
     ValidationError:
       type: object
       required:
@@ -393,7 +773,7 @@ components:
         - type
       properties:
         loc:
-          description: "Posizione dell'errore (es. body, query, o indice dell'array)"
+          description: "Location of the error (e.g. body, query, or array index)"
           type: array
           items:
             oneOf:
@@ -401,18 +781,18 @@ components:
               - type: integer
         msg:
           type: string
-          description: "Messaggio di errore leggibile"
+          description: "Human-readable error message"
         type:
           type: string
-          description: "Codice del tipo di errore"
+          description: "Error type code"
         input:
           nullable: true
-          description: "Il valore che ha causato l'errore"
+          description: "The value that caused the error"
         ctx:
           type: object
-          description: "Contesto aggiuntivo per l'errore"
+          description: "Additional context for the error"
 
-    ConflictError:  
+    ConflictError:
       type: object
       required:
         - status
@@ -425,10 +805,9 @@ components:
           type: string
         field:
           type: string
-          description: "Il campo che ha causato il duplicato"
+          description: "The field that caused the conflict"
           example: "email"
-
-
+  
     HTTPValidationError:
       type: object
       properties:
@@ -439,16 +818,15 @@ components:
 
   responses:
     ValidationErrorResponse:
-      description: "Errore di Validazione (422)"
+      description: "Validation Error (422)"
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/HTTPValidationError'
 
     AlreadyExists:
-      description: "Not able to perform the action: already exits"
+      description: "Cannot perform the action: resource already exists"
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ConflictError'
-  
