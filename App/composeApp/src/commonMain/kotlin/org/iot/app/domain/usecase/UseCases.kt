@@ -9,6 +9,19 @@ import org.iot.app.domain.model.Plate
 import org.iot.app.domain.model.User
 import org.iot.app.domain.repository.ParkingRepository
 import org.iot.app.domain.repository.SettingsRepository
+import org.iot.app.data.remote.dto.LoginRequest
+import org.iot.app.data.remote.dto.RegisterRequest
+import org.iot.app.domain.repository.AuthRepository
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+class LoginUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(request: LoginRequest) = repository.login(request)
+}
+
+class RegisterUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(request: RegisterRequest) = repository.register(request)
+}
 
 // ── Parking ───────────────────────────────────────────────────────────────────
 
