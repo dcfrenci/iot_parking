@@ -15,7 +15,6 @@ fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onBackToLogin: () -> Unit
 ) {
-    // Collect the state from the ViewModel
     val uiState by viewModel.uiState.collectAsState()
 
     Column(
@@ -31,7 +30,6 @@ fun RegisterScreen(
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        // Conditionally show error messages
         uiState.errorMessage?.let { error ->
             Text(
                 text = error,
@@ -42,12 +40,23 @@ fun RegisterScreen(
         }
 
         OutlinedTextField(
+            value = uiState.name,
+            onValueChange = { viewModel.onNameChange(it) },
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            enabled = !uiState.isLoading
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
             value = uiState.email,
             onValueChange = { viewModel.onEmailChange(it) },
             label = { Text("Email") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            enabled = !uiState.isLoading // Disable input while loading
+            enabled = !uiState.isLoading
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -59,7 +68,19 @@ fun RegisterScreen(
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            enabled = !uiState.isLoading // Disable input while loading
+            enabled = !uiState.isLoading
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = uiState.confirmPassword,
+            onValueChange = { viewModel.onConfirmPasswordChange(it) },
+            label = { Text("Confirm Password") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            enabled = !uiState.isLoading
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -69,7 +90,7 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            enabled = !uiState.isLoading // Prevent multiple clicks
+            enabled = !uiState.isLoading
         ) {
             if (uiState.isLoading) {
                 CircularProgressIndicator(

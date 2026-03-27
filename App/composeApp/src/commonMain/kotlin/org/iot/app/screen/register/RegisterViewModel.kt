@@ -10,11 +10,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class RegisterViewModel(
-    // Inject your use cases here, e.g., private val registerUser: RegisterUserUseCase
+    // Inject your use cases here later TODO
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
+
+    fun onNameChange(name: String) {
+        _uiState.update { it.copy(name = name, errorMessage = null) }
+    }
 
     fun onEmailChange(email: String) {
         _uiState.update { it.copy(email = email, errorMessage = null) }
@@ -24,19 +28,35 @@ class RegisterViewModel(
         _uiState.update { it.copy(password = password, errorMessage = null) }
     }
 
+    fun onConfirmPasswordChange(confirmPassword: String) {
+        _uiState.update { it.copy(confirmPassword = confirmPassword, errorMessage = null) }
+    }
+
     fun onRegisterClick(onSuccess: () -> Unit) {
         val currentState = _uiState.value
-        if (currentState.email.isBlank() || currentState.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Fields cannot be empty") }
+
+        // 1. Check for empty fields
+        if (currentState.name.isBlank() ||
+            currentState.email.isBlank() ||
+            currentState.password.isBlank() ||
+            currentState.confirmPassword.isBlank()
+        ) {
+            _uiState.update { it.copy(errorMessage = "All fields must be filled") }
+            return
+        }
+
+        // 2. Check if passwords match
+        if (currentState.password != currentState.confirmPassword) {
+            _uiState.update { it.copy(errorMessage = "Passwords do not match") }
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            
-            // Simulate network request / Use Case execution
-            delay(1500) 
-            
+
+            // Simulate network request / Use Case execution TODO
+            delay(1500)
+
             // Assuming success:
             _uiState.update { it.copy(isLoading = false) }
             onSuccess()
@@ -45,8 +65,10 @@ class RegisterViewModel(
 }
 
 data class RegisterUiState(
+    val name: String = "",
     val email: String = "",
     val password: String = "",
+    val confirmPassword: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
