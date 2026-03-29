@@ -374,7 +374,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Parked'
+                  $ref: '#/components/schemas/Session'
         "422":
           $ref: '#/components/responses/ValidationErrorResponse'
 
@@ -705,7 +705,7 @@ components:
           type: string
           description: "Street address of the parking"
 
-    Parked:
+    Session:
       type: object
       required:
         - plate

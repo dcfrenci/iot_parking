@@ -24,4 +24,5 @@ fastapi
 uvicorn
 sqlalchemy
 pydantic
+pydantic[email]
 bcrypt

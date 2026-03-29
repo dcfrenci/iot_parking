@@ -1,5 +1,7 @@
 .venv/
 Backend/__pycache__/
+Backend/routers/__pycache__/
+Backend/parking.db
 Debug/
 Model/__pycache__/
 Server/__pycache__/
