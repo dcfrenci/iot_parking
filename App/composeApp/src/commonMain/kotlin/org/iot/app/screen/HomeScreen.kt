@@ -5,7 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,7 +16,6 @@ import app.composeapp.generated.resources.*
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import org.iot.app.domain.model.Booking
 import org.iot.app.domain.model.Session
@@ -34,31 +33,41 @@ import org.jetbrains.compose.resources.painterResource
 fun HomeScreen(viewModel: HomeViewModel) {
     val uiState by viewModel.uiState.collectAsState()
 
-    when {
-        uiState.isLoading -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        }
-        uiState.error != null -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Error: ${uiState.error}", color = MaterialTheme.colorScheme.error)
-                    Button(onClick = { viewModel.loadData() }) { Text("Try again") }
+    PullToRefreshBox(
+        isRefreshing = uiState.isLoading,
+        onRefresh = { viewModel.loadData(isRefresh = true) },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        when {
+            // Only show the central loading spinner if we are loading AND have no data yet.
+            // If we are just refreshing existing data, PullToRefreshBox handles the UI spinner.
+            uiState.isLoading && uiState.activeSessions.isEmpty() && uiState.bookings.isEmpty() -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
             }
+            uiState.error != null -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Error: ${uiState.error}", color = MaterialTheme.colorScheme.error)
+                        Button(onClick = { viewModel.loadData(isRefresh = true) }) { Text("Try again") }
+                    }
+                }
+            }
+            else -> {
+                HomeContent(
+                    uiState               = uiState,
+                    onToggleParkingDetail = { viewModel.toggleParkingDetail() },
+                    onSecurityChange      = { viewModel.updateSecurityAlerts(it) },
+                    onToggleBooking       = { viewModel.toggleBookingExpanded(it) },
+                    onOpenEditPlate       = { viewModel.openEditPlateDialog(it) },
+                    onOpenNewBooking      = { viewModel.openNewBookingDialog() },
+                )
+            }
         }
-        else -> HomeContent(
-            uiState               = uiState,
-            onToggleParkingDetail = { viewModel.toggleParkingDetail() },
-            onSecurityChange      = { viewModel.updateSecurityAlerts(it) },
-            onToggleBooking       = { viewModel.toggleBookingExpanded(it) },
-            onOpenEditPlate       = { viewModel.openEditPlateDialog(it) },
-            onOpenNewBooking      = { viewModel.openNewBookingDialog() },
-        )
     }
 
     if (uiState.isNewBookingDialogOpen) {
