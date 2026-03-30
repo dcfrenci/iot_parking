@@ -5,49 +5,44 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ParkingDto(
-    val id: String,
-    val name: String,
-    val address: String,
-    val latitude: Double,
-    val longitude: Double,
-    @SerialName("available_slots") val availableSlots: Int,
-    @SerialName("total_slots") val totalSlots: Int,
+    @SerialName("parking_id") val parkingId: Int,
+    @SerialName("parking_name") val parkingName: String,
+    @SerialName("total_slot") val totalSlot: Int,
+    @SerialName("available_slot") val availableSlot: Int,
     @SerialName("price_per_hour") val pricePerHour: Double,
-    @SerialName("distance_km") val distanceKm: Double,
+    val lat: Double,
+    val lon: Double,
+    val address: String
+)
+
+@Serializable
+data class ParkingRangeResponse(
+    val parking: ParkingDto,
+    val distance: Double
 )
 
 @Serializable
 data class BookingDto(
-    val id: String,
-    val name: String,
-    @SerialName("parking_id") val parkingId: String,
-    @SerialName("parking_name") val parkingName: String,
+    @SerialName("booking_id") val bookingId: Int,
+    @SerialName("booking_name") val bookingName: String,
+    val parking: ParkingDto,
+    val plate: PlateDto,
     val date: String,
-    @SerialName("car_plate") val carPlate: String,
-    @SerialName("slot_code") val slotCode: String,
     val days: Int,
-    @SerialName("price_per_hour") val pricePerHour: Double,
+    @SerialName("slot_code") val slotCode: Int,
 )
 
 @Serializable
-data class CreateBookingDto(
-    val name: String,
-    @SerialName("parking_id") val parkingId: String,
-    @SerialName("car_plate") val carPlate: String,
-    val days: Int,
+data class SessionDto(
+    val plate: PlateDto,
+    val parking: ParkingDto,
+    @SerialName("entry_time") val entryTime: String,
+    val amount: Double,
+    @SerialName("is_paid") val isPaid: Boolean
 )
 
 @Serializable
-data class UpdateBookingPlateDto(
-    @SerialName("car_plate") val carPlate: String,
-)
-
-@Serializable
-data class CurrentParkingDto(
-    @SerialName("parking_name") val parkingName: String,
-    @SerialName("car_plate") val carPlate: String,
-    @SerialName("price_per_hour") val pricePerHour: Double,
-    @SerialName("started_at") val startedAt: String,
-    val latitude: Double,
-    val longitude: Double,
+data class BookingRequest(
+    @SerialName("account_id") val accountId: Int,
+    val booking: BookingDto
 )

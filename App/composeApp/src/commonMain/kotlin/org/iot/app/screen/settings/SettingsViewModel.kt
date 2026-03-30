@@ -7,68 +7,73 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.iot.app.domain.SessionManager
 import org.iot.app.domain.model.ParkingPreferences
 import org.iot.app.domain.model.PaymentMethod
 import org.iot.app.domain.model.Plate
 import org.iot.app.domain.model.User
-import org.iot.app.domain.usecase.AddPlateUseCase
-import org.iot.app.domain.usecase.GetPaymentMethodUseCase
-import org.iot.app.domain.usecase.GetPlatesUseCase
-import org.iot.app.domain.usecase.GetPreferencesUseCase
-import org.iot.app.domain.usecase.GetUserUseCase
-import org.iot.app.domain.usecase.SavePreferencesUseCase
-import org.iot.app.domain.usecase.SetPlateActiveUseCase
+import org.iot.app.domain.usecase.*
 
 data class SettingsUiState(
+    val isLoading: Boolean = false,
+    val error: String? = null,
     val user: User? = null,
     val plates: List<Plate> = emptyList(),
     val paymentMethod: PaymentMethod? = null,
-    val preferences: ParkingPreferences = ParkingPreferences(2.5, 5.0),
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val isAddPlateDialogOpen: Boolean = false,
+    val preferences: ParkingPreferences? = null,
+    val isAddPlateDialogOpen: Boolean = false
 )
 
 class SettingsViewModel(
     private val getUser: GetUserUseCase,
     private val getPlates: GetPlatesUseCase,
-    private val setPlateActive: SetPlateActiveUseCase,
     private val addPlate: AddPlateUseCase,
+    private val deletePlate: DeletePlateUseCase,
     private val getPaymentMethod: GetPaymentMethodUseCase,
+    private val updatePaymentMethod: UpdatePaymentMethodUseCase,
     private val getPreferences: GetPreferencesUseCase,
-    private val savePreferences: SavePreferencesUseCase,
+    private val savePreferences: SavePreferencesUseCase
 ) : ViewModel() {
+
+    private val accountId get() = SessionManager.currentAccountId
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
-        loadData()
+        loadSettings()
     }
 
-    fun loadData() {
+    fun loadSettings() {
+        if (accountId == -1) return
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            getUser().onSuccess { user -> _uiState.update { it.copy(user = user) } }
-            getPlates().onSuccess { plates -> _uiState.update { it.copy(plates = plates) } }
-            getPaymentMethod().onSuccess { pm -> _uiState.update { it.copy(paymentMethod = pm) } }
-            getPreferences().onSuccess { prefs -> _uiState.update { it.copy(preferences = prefs) } }
-            _uiState.update { it.copy(isLoading = false) }
+            try {
+                val user = getUser(accountId).getOrNull()
+                val plates = getPlates(accountId).getOrNull() ?: emptyList()
+                val payment = getPaymentMethod(accountId).getOrNull()
+                val prefs = getPreferences(accountId).getOrNull()
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        user = user,
+                        plates = plates,
+                        paymentMethod = payment,
+                        preferences = prefs
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = e.message) }
+            }
         }
     }
 
-    fun togglePlate(plateId: String, isActive: Boolean) {
-        viewModelScope.launch {
-            setPlateActive(plateId, isActive).onSuccess {
-                _uiState.update { state ->
-                    state.copy(
-                        plates = state.plates.map { p ->
-                            if (p.id == plateId) p.copy(isActive = isActive) else p
-                        }
-                    )
-                }
-            }
-        }
+    fun togglePlate(plateId: Int, isActive: Boolean) {
+        // Here you would implement your SetPlateActive logic if needed
+        // For now, it just reloads settings to sync state
+        loadSettings()
     }
 
     fun openAddPlateDialog() {
@@ -79,25 +84,35 @@ class SettingsViewModel(
         _uiState.update { it.copy(isAddPlateDialogOpen = false) }
     }
 
-    fun submitAddPlate(name: String, plateText: String, imageUri: String?) {
+    fun addNewPlate(name: String, plateText: String, imageUri: String?) {
         viewModelScope.launch {
-            addPlate(name, plateText, imageUri).onSuccess { plate ->
-                _uiState.update { state ->
-                    state.copy(
-                        plates = state.plates + plate,
-                        isAddPlateDialogOpen = false,
-                    )
-                }
+            addPlate(accountId, name, plateText, imageUri).onSuccess {
+                closeAddPlateDialog()
+                loadSettings()
             }
         }
     }
 
-    fun updatePreferences(maxDistanceKm: Double, maxPricePerHour: Double) {
-        val newPrefs = ParkingPreferences(maxDistanceKm, maxPricePerHour)
+    fun removePlate(plateId: Int) {
         viewModelScope.launch {
-            savePreferences(newPrefs).onSuccess {
-                _uiState.update { it.copy(preferences = newPrefs) }
-            }
+            deletePlate(accountId, plateId).onSuccess { loadSettings() }
         }
+    }
+
+    fun updatePayment(paymentMethod: PaymentMethod) {
+        viewModelScope.launch {
+            updatePaymentMethod(accountId, paymentMethod).onSuccess { loadSettings() }
+        }
+    }
+
+    fun updatePrefs(distance: Double, price: Double) {
+        viewModelScope.launch {
+            val newPrefs = ParkingPreferences(distance, price)
+            savePreferences(accountId, newPrefs).onSuccess { loadSettings() }
+        }
+    }
+
+    fun logout() {
+        SessionManager.logout()
     }
 }

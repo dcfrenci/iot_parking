@@ -3,9 +3,11 @@ package org.iot.app
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import org.iot.app.data.remote.AuthApi
 import org.iot.app.data.remote.HttpClientFactory
 import org.iot.app.data.remote.ParkingApi
 import org.iot.app.data.remote.SettingsApi
+import org.iot.app.data.repository.AuthRepositoryImpl
 import org.iot.app.data.repository.ParkingRepositoryImpl
 import org.iot.app.data.repository.SettingsRepositoryImpl
 import org.iot.app.domain.usecase.*
@@ -14,42 +16,54 @@ import org.iot.app.domain.usecase.*
 fun App() {
     val client = remember { HttpClientFactory.create() }
 
+    val authApi     = remember { AuthApi(client) }
     val parkingApi  = remember { ParkingApi(client) }
     val settingsApi = remember { SettingsApi(client) }
 
+    val authRepository     = remember { AuthRepositoryImpl(authApi) }
     val parkingRepository  = remember { ParkingRepositoryImpl(parkingApi) }
     val settingsRepository = remember { SettingsRepositoryImpl(settingsApi) }
 
+    // Auth use cases
+    val login    = remember { LoginUseCase(authRepository) }
+    val register = remember { RegisterUseCase(authRepository) }
+
     // Parking use cases
-    val getNearbyParkings  = remember { GetNearbyParkingsUseCase(parkingRepository) }
-    val getCurrentParking  = remember { GetCurrentParkingUseCase(parkingRepository) }
-    val getBookings        = remember { GetBookingsUseCase(parkingRepository) }
-    val createBooking      = remember { CreateBookingUseCase(parkingRepository) }
-    val updateBookingPlate = remember { UpdateBookingPlateUseCase(parkingRepository) }
+    val getNearbyParkings = remember { GetNearbyParkingsUseCase(parkingRepository) }
+    val getActiveSessions = remember { GetActiveSessionsUseCase(parkingRepository) }
+    val getBookings       = remember { GetBookingsUseCase(parkingRepository) }
+    val createBooking     = remember { CreateBookingUseCase(parkingRepository) }
+    val updateBooking     = remember { UpdateBookingUseCase(parkingRepository) }
+    val deleteBooking     = remember { DeleteBookingUseCase(parkingRepository) }
 
     // Settings use cases
-    val getUser          = remember { GetUserUseCase(settingsRepository) }
-    val getPlates        = remember { GetPlatesUseCase(settingsRepository) }
-    val setPlateActive   = remember { SetPlateActiveUseCase(settingsRepository) }
-    val addPlate         = remember { AddPlateUseCase(settingsRepository) }
-    val getPaymentMethod = remember { GetPaymentMethodUseCase(settingsRepository) }
-    val getPreferences   = remember { GetPreferencesUseCase(settingsRepository) }
-    val savePreferences  = remember { SavePreferencesUseCase(settingsRepository) }
+    val getUser             = remember { GetUserUseCase(settingsRepository) }
+    val getPlates           = remember { GetPlatesUseCase(settingsRepository) }
+    val addPlate            = remember { AddPlateUseCase(settingsRepository) }
+    val deletePlate         = remember { DeletePlateUseCase(settingsRepository) }
+    val getPaymentMethod    = remember { GetPaymentMethodUseCase(settingsRepository) }
+    val updatePaymentMethod = remember { UpdatePaymentMethodUseCase(settingsRepository) }
+    val getPreferences      = remember { GetPreferencesUseCase(settingsRepository) }
+    val savePreferences     = remember { SavePreferencesUseCase(settingsRepository) }
 
     MaterialTheme {
         RootNavigation(
-            getNearbyParkings  = getNearbyParkings,
-            getCurrentParking  = getCurrentParking,
-            getBookings        = getBookings,
-            createBooking      = createBooking,
-            updateBookingPlate = updateBookingPlate,
-            getUser            = getUser,
-            getPlates          = getPlates,
-            setPlateActive     = setPlateActive,
-            addPlate           = addPlate,
-            getPaymentMethod   = getPaymentMethod,
-            getPreferences     = getPreferences,
-            savePreferences    = savePreferences,
+            login               = login,
+            register            = register,
+            getNearbyParkings   = getNearbyParkings,
+            getActiveSessions   = getActiveSessions,
+            getBookings         = getBookings,
+            createBooking       = createBooking,
+            updateBooking       = updateBooking,
+            deleteBooking       = deleteBooking,
+            getUser             = getUser,
+            getPlates           = getPlates,
+            addPlate            = addPlate,
+            deletePlate         = deletePlate,
+            getPaymentMethod    = getPaymentMethod,
+            updatePaymentMethod = updatePaymentMethod,
+            getPreferences      = getPreferences,
+            savePreferences     = savePreferences,
         )
     }
 }

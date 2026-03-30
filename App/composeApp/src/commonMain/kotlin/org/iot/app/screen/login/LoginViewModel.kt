@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.iot.app.data.remote.dto.LoginRequest
+import org.iot.app.domain.SessionManager
 import org.iot.app.domain.usecase.LoginUseCase
 
 data class LoginState(
@@ -47,20 +48,21 @@ class LoginViewModel(
                 email = currentState.email,
                 password = currentState.password
             )
-            
+
             val result = loginUseCase(request)
-            
+
             result.fold(
-                onSuccess = { response ->
-                    // Here you would typically save the token from response.token to a secure local storage
+                onSuccess = { user ->
+                    // Save the account_id globally so the Home and Settings screens can use it
+                    SessionManager.loginUser(user.accountId)
                     _state.update { it.copy(isLoading = false, isSuccess = true) }
                 },
                 onFailure = { exception ->
-                    _state.update { 
+                    _state.update {
                         it.copy(
-                            isLoading = false, 
+                            isLoading = false,
                             error = exception.message ?: "An unknown error occurred"
-                        ) 
+                        )
                     }
                 }
             )

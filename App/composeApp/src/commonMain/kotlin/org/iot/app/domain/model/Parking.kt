@@ -1,34 +1,35 @@
 package org.iot.app.domain.model
 
 data class Parking(
-    val id: String,
-    val name: String,
+    val parkingId: Int,
+    val parkingName: String,
     val address: String,
     val latitude: Double,
     val longitude: Double,
-    val availableSlots: Int,
-    val totalSlots: Int,
+    val availableSlot: Int,
+    val totalSlot: Int,
     val pricePerHour: Double,
-    val distanceKm: Double,
+)
+
+data class ParkingRange(
+    val parking: Parking,
+    val distance: Double
 )
 
 data class Booking(
-    val id: String,
-    val name: String,           // user-chosen booking name
-    val parkingId: String,
-    val parkingName: String,
+    val bookingId: Int,
+    val bookingName: String,
+    val parking: Parking,
+    val plate: Plate,
     val date: String,
-    val carPlate: String,
-    val slotCode: String,
     val days: Int,
-    val pricePerHour: Double,
+    val slotCode: Int,
 )
 
-data class CurrentParking(
-    val parkingName: String,
-    val carPlate: String,
-    val pricePerHour: Double,
-    val startedAt: String,        // ISO-8601
-    val latitude: Double,
-    val longitude: Double,
+data class Session(
+    val plate: Plate,
+    val parking: Parking,
+    val entryTime: String,
+    val amount: Double,
+    val isPaid: Boolean
 )

@@ -11,13 +11,13 @@ import org.iot.app.data.remote.dto.RegisterRequest
 class AuthApi(private val client: HttpClient) {
 
     suspend fun login(request: LoginRequest): AuthResponse {
-        return client.post("auth/login") { // Sostituisci con il tuo endpoint OpenAPI corretto
+        return client.post("login") {
             setBody(request)
         }.body()
     }
 
     suspend fun register(request: RegisterRequest): AuthResponse {
-        return client.post("auth/register") { // Sostituisci con il tuo endpoint OpenAPI corretto
+        return client.post("register") {
             setBody(request)
         }.body()
     }

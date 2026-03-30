@@ -11,42 +11,45 @@ import org.iot.app.domain.model.Parking
 import org.iot.app.domain.usecase.GetNearbyParkingsUseCase
 
 data class MapUiState(
-    val parkings: List<Parking> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isMapExpanded: Boolean = false,
-    val selectedParking: Parking? = null,
-    // Camera center for the OSM map
-    val mapCenterLat: Double = 44.6471,
+    val isMapExpanded: Boolean = true,
+    val mapCenterLat: Double = 44.6471, // Modena coordinates
     val mapCenterLon: Double = 10.9252,
+    val parkings: List<Parking> = emptyList(),
+    val selectedParking: Parking? = null
 )
 
 class MapViewModel(
-    private val getNearbyParkings: GetNearbyParkingsUseCase,
+    private val getNearbyParkings: GetNearbyParkingsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MapUiState())
     val uiState: StateFlow<MapUiState> = _uiState.asStateFlow()
 
     init {
-        loadParkings()
+        // Fetch initially based on the default coordinates
+        fetchNearbyParkings(_uiState.value.mapCenterLat, _uiState.value.mapCenterLon)
     }
 
-    fun loadParkings(lat: Double = 44.6471, lon: Double = 10.9252) {
+    fun fetchNearbyParkings(lat: Double, lon: Double, range: Int = 5000) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null, mapCenterLat = lat, mapCenterLon = lon) }
-            getNearbyParkings(lat, lon)
-                .onSuccess { parkings ->
-                    _uiState.update { it.copy(parkings = parkings, isLoading = false) }
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            getNearbyParkings(lat, lon, range).onSuccess { parkingRanges ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        parkings = parkingRanges.map { pr -> pr.parking }
+                    )
                 }
-                .onFailure { e ->
-                    _uiState.update { it.copy(error = e.message, isLoading = false) }
-                }
+            }.onFailure { err ->
+                _uiState.update { it.copy(isLoading = false, error = err.message) }
+            }
         }
     }
 
     fun toggleMapExpanded() {
-        _uiState.update { it.copy(isMapExpanded = !it.isMapExpanded, selectedParking = null) }
+        _uiState.update { it.copy(isMapExpanded = !it.isMapExpanded) }
     }
 
     fun selectParking(parking: Parking?) {

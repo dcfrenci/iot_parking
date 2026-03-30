@@ -21,9 +21,6 @@ import org.iot.app.screen.settings.SettingsUiState
 import org.iot.app.screen.settings.SettingsViewModel
 import org.jetbrains.compose.resources.painterResource
 
-// NOTE: AsyncImage (coil-compose-core) is used for loading plate images from URI.
-// Add io.coil-kt.coil3:coil-compose-core to your KMP dependencies.
-
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
     val uiState by viewModel.uiState.collectAsState()
@@ -41,21 +38,21 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text("Error: ${uiState.error}", color = MaterialTheme.colorScheme.error)
-                    Button(onClick = { viewModel.loadData() }) { Text("Try again") }
+                    Button(onClick = { viewModel.loadSettings() }) { Text("Try again") }
                 }
             }
         }
         else -> SettingsContent(
             uiState       = uiState,
             onTogglePlate = { id, active -> viewModel.togglePlate(id, active) },
-            onSavePrefs   = { dist, price -> viewModel.updatePreferences(dist, price) },
+            onSavePrefs   = { dist, price -> viewModel.updatePrefs(dist, price) },
             onOpenAddPlate = { viewModel.openAddPlateDialog() },
         )
     }
 
     if (uiState.isAddPlateDialogOpen) {
         AddPlateDialog(
-            onConfirm = { name, text, uri -> viewModel.submitAddPlate(name, text, uri) },
+            onConfirm = { name, text, uri -> viewModel.addNewPlate(name, text, uri) },
             onDismiss = { viewModel.closeAddPlateDialog() },
         )
     }
@@ -66,7 +63,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 @Composable
 private fun SettingsContent(
     uiState: SettingsUiState,
-    onTogglePlate: (String, Boolean) -> Unit,
+    onTogglePlate: (Int, Boolean) -> Unit,
     onSavePrefs: (Double, Double) -> Unit,
     onOpenAddPlate: () -> Unit,
 ) {
@@ -85,10 +82,9 @@ private fun SettingsContent(
                 uiState.plates.forEach { plate ->
                     RegisteredPlateCard(
                         plate    = plate,
-                        onToggle = { isActive -> onTogglePlate(plate.id, isActive) }
+                        onToggle = { isActive -> onTogglePlate(plate.plateId, isActive) }
                     )
                 }
-                // Add plate button at the end of the list
                 OutlinedButton(
                     onClick  = onOpenAddPlate,
                     modifier = Modifier.fillMaxWidth(),
@@ -109,11 +105,13 @@ private fun SettingsContent(
 
         item { SectionHeader("Parking preferences") }
         item {
-            ParkingPreferencesCard(
-                initialDistance = uiState.preferences.maxDistanceKm,
-                initialPrice    = uiState.preferences.maxPricePerHour,
-                onSave          = onSavePrefs,
-            )
+            uiState.preferences?.let { prefs ->
+                ParkingPreferencesCard(
+                    initialDistance = prefs.distanceValue,
+                    initialPrice    = prefs.priceValue,
+                    onSave          = onSavePrefs,
+                )
+            }
         }
     }
 }
@@ -172,7 +170,7 @@ private fun RegisteredPlateCard(
     plate: Plate,
     onToggle: (Boolean) -> Unit,
 ) {
-    var checked by remember(plate.id) { mutableStateOf(plate.isActive) }
+    var checked by remember(plate.plateId) { mutableStateOf(plate.isActive) }
 
     Card(
         modifier  = Modifier.fillMaxWidth(),
@@ -203,18 +201,16 @@ private fun RegisteredPlateCard(
                         text  = if (checked) "Active" else "Inactive",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (checked) MaterialTheme.colorScheme.tertiary
-                                else         MaterialTheme.colorScheme.error
+                        else         MaterialTheme.colorScheme.error
                     )
                 }
             }
 
-            // Plate image (if present) and plate text side by side
             Row(
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (plate.imageUri != null) {
-                    // Using coil3 AsyncImage for KMP-compatible image loading
                     coil3.compose.AsyncImage(
                         model             = plate.imageUri,
                         contentDescription = "Plate image",
@@ -225,7 +221,6 @@ private fun RegisteredPlateCard(
                         error             = painterResource(Res.drawable.image),
                     )
                 } else {
-                    // Placeholder box
                     Box(
                         modifier         = Modifier
                             .size(width = 100.dp, height = 52.dp)
@@ -302,8 +297,9 @@ private fun PaymentMethodCard(payment: PaymentMethod) {
                     tint               = MaterialTheme.colorScheme.primary,
                     modifier           = Modifier.size(24.dp)
                 )
+                val lastFour = payment.cardNumber.takeLast(4).padStart(4, '*')
                 Text(
-                    text  = "${payment.brand} **** ${payment.lastFour}",
+                    text  = "${payment.circuit} $lastFour",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -320,8 +316,8 @@ private fun ParkingPreferencesCard(
     initialPrice: Double,
     onSave: (Double, Double) -> Unit,
 ) {
-    var distance by remember(initialDistance) { mutableStateOf((initialDistance / 5f).toFloat()) }
-    var price    by remember(initialPrice)    { mutableStateOf((initialPrice / 10f).toFloat()) }
+    var distance by remember(initialDistance) { mutableStateOf((initialDistance / 5f).toFloat().coerceIn(0f, 1f)) }
+    var price    by remember(initialPrice)    { mutableStateOf((initialPrice / 10f).toFloat().coerceIn(0f, 1f)) }
 
     Card(
         modifier  = Modifier.fillMaxWidth(),
@@ -383,7 +379,6 @@ private fun AddPlateDialog(
     var name      by remember { mutableStateOf("") }
     var plateText by remember { mutableStateOf("") }
     var imageUri  by remember { mutableStateOf<String?>(null) }
-    var showSourceSheet by remember { mutableStateOf(false) }
 
     val imagePicker = rememberImagePicker { uri -> imageUri = uri }
 
@@ -407,7 +402,6 @@ private fun AddPlateDialog(
                     singleLine    = true,
                 )
 
-                // Image preview / picker
                 if (imageUri != null) {
                     coil3.compose.AsyncImage(
                         model             = imageUri,
@@ -434,7 +428,7 @@ private fun AddPlateDialog(
                         Text("Gallery")
                     }
                     OutlinedButton(
-                        onClick  = { imagePicker.launch() }, // on real impl: separate camera launcher
+                        onClick  = { imagePicker.launch() },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(

@@ -7,45 +7,42 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.iot.app.domain.SessionManager
 import org.iot.app.domain.model.Booking
-import org.iot.app.domain.model.CurrentParking
 import org.iot.app.domain.model.Plate
-import org.iot.app.domain.usecase.CreateBookingUseCase
-import org.iot.app.domain.usecase.GetBookingsUseCase
-import org.iot.app.domain.usecase.GetCurrentParkingUseCase
-import org.iot.app.domain.usecase.GetPlatesUseCase
-import org.iot.app.domain.usecase.UpdateBookingPlateUseCase
+import org.iot.app.domain.model.Session
+import org.iot.app.domain.model.Parking
+import org.iot.app.domain.usecase.*
 
 data class SecurityAlerts(
     val notifyOnCarExit: Boolean = false,
     val notifyAfter12h: Boolean = false,
-    val notifyAfter24h: Boolean = false,
+    val notifyAfter24h: Boolean = false
 )
 
 data class HomeUiState(
-    val currentParking: CurrentParking? = null,
-    val bookings: List<Booking> = emptyList(),
-    val plates: List<Plate> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    // Currently parked card expansion
-    val isParkingDetailExpanded: Boolean = false,
+    val activeSessions: List<Session> = emptyList(),
+    val bookings: List<Booking> = emptyList(),
+    val plates: List<Plate> = emptyList(),
     val securityAlerts: SecurityAlerts = SecurityAlerts(),
-    // Booking expansion state: bookingId -> expanded
-    val expandedBookingId: String? = null,
-    // New booking dialog
+    val isParkingDetailExpanded: Boolean = false,
+    val expandedBookingId: Int? = null,
     val isNewBookingDialogOpen: Boolean = false,
-    // Edit plate dialog
-    val editingBookingId: String? = null,
+    val editingBookingId: Int? = null
 )
 
 class HomeViewModel(
-    private val getCurrentParking: GetCurrentParkingUseCase,
+    private val getActiveSessions: GetActiveSessionsUseCase,
     private val getBookings: GetBookingsUseCase,
     private val getPlates: GetPlatesUseCase,
     private val createBooking: CreateBookingUseCase,
-    private val updateBookingPlate: UpdateBookingPlateUseCase,
+    private val updateBooking: UpdateBookingUseCase,
+    private val deleteBooking: DeleteBookingUseCase
 ) : ViewModel() {
+
+    private val accountId get() = SessionManager.currentAccountId
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -55,29 +52,26 @@ class HomeViewModel(
     }
 
     fun loadData() {
+        if (accountId == -1) return
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            getCurrentParking()
-                .onSuccess { current ->
-                    _uiState.update { it.copy(currentParking = current) }
+            try {
+                val sessions = getActiveSessions(accountId).getOrNull() ?: emptyList()
+                val bookingsList = getBookings(accountId).getOrNull() ?: emptyList()
+                val platesList = getPlates(accountId).getOrNull() ?: emptyList()
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        activeSessions = sessions,
+                        bookings = bookingsList,
+                        plates = platesList
+                    )
                 }
-                .onFailure { e ->
-                    _uiState.update { it.copy(error = e.message) }
-                }
-            getBookings()
-                .onSuccess { bookings ->
-                    _uiState.update { it.copy(bookings = bookings) }
-                }
-                .onFailure { e ->
-                    _uiState.update { it.copy(error = e.message) }
-                }
-            getPlates()
-                .onSuccess { plates ->
-                    _uiState.update { it.copy(plates = plates, isLoading = false) }
-                }
-                .onFailure { e ->
-                    _uiState.update { it.copy(error = e.message, isLoading = false) }
-                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = e.message) }
+            }
         }
     }
 
@@ -89,12 +83,18 @@ class HomeViewModel(
         _uiState.update { it.copy(securityAlerts = alerts) }
     }
 
-    fun toggleBookingExpanded(bookingId: String) {
-        _uiState.update { state ->
-            state.copy(
-                expandedBookingId = if (state.expandedBookingId == bookingId) null else bookingId
-            )
+    fun toggleBookingExpanded(bookingId: Int) {
+        _uiState.update {
+            it.copy(expandedBookingId = if (it.expandedBookingId == bookingId) null else bookingId)
         }
+    }
+
+    fun openEditPlateDialog(bookingId: Int) {
+        _uiState.update { it.copy(editingBookingId = bookingId) }
+    }
+
+    fun closeEditPlateDialog() {
+        _uiState.update { it.copy(editingBookingId = null) }
     }
 
     fun openNewBookingDialog() {
@@ -107,48 +107,46 @@ class HomeViewModel(
 
     fun submitNewBooking(
         name: String,
-        parkingId: String,
+        parkingId: Int,
         carPlate: String,
         days: Int,
         onSuccess: () -> Unit,
-        onError: (String) -> Unit,
+        onError: (String) -> Unit
     ) {
         viewModelScope.launch {
-            createBooking(name, parkingId, carPlate, days)
-                .onSuccess { booking ->
-                    _uiState.update { state ->
-                        state.copy(
-                            bookings = state.bookings + booking,
-                            isNewBookingDialogOpen = false
-                        )
-                    }
-                    onSuccess()
-                }
-                .onFailure { e -> onError(e.message ?: "Error creating booking") }
+            _uiState.update { it.copy(isLoading = true) }
+
+            val selectedPlate = _uiState.value.plates.firstOrNull { it.plateText == carPlate }
+            if (selectedPlate == null) {
+                _uiState.update { it.copy(isLoading = false, error = "Plate not found") }
+                return@launch
+            }
+
+            // Dummy Parking object to satisfy the Domain Model structure for creation
+            val dummyParking = Parking(parkingId, "", "", 0.0, 0.0, 0, 0, 0.0)
+            val newBooking = Booking(0, name, dummyParking, selectedPlate, "", days, 0)
+
+            createBooking(accountId, newBooking).onSuccess {
+                closeNewBookingDialog()
+                loadData()
+                onSuccess()
+            }.onFailure { err ->
+                _uiState.update { it.copy(isLoading = false, error = err.message) }
+                onError(err.message ?: "Error creating booking")
+            }
         }
     }
 
-    fun openEditPlateDialog(bookingId: String) {
-        _uiState.update { it.copy(editingBookingId = bookingId) }
-    }
-
-    fun closeEditPlateDialog() {
-        _uiState.update { it.copy(editingBookingId = null) }
-    }
-
-    fun changeBookingPlate(bookingId: String, newPlate: String) {
+    fun changeBookingPlate(bookingId: Int, newPlateText: String) {
         viewModelScope.launch {
-            updateBookingPlate(bookingId, newPlate)
-                .onSuccess { updated ->
-                    _uiState.update { state ->
-                        state.copy(
-                            bookings = state.bookings.map {
-                                if (it.id == bookingId) updated else it
-                            },
-                            editingBookingId = null,
-                        )
-                    }
-                }
+            val booking = _uiState.value.bookings.firstOrNull { it.bookingId == bookingId } ?: return@launch
+            val plate = _uiState.value.plates.firstOrNull { it.plateText == newPlateText } ?: return@launch
+
+            val updatedBooking = booking.copy(plate = plate)
+            updateBooking(accountId, updatedBooking).onSuccess {
+                closeEditPlateDialog()
+                loadData()
+            }
         }
     }
 }

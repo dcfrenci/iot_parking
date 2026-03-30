@@ -59,7 +59,7 @@ fun MapScreen(viewModel: MapViewModel) {
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            MapContent(uiState = uiState, onRetry = { viewModel.loadParkings() })
+            MapContent(uiState = uiState, onRetry = { viewModel.fetchNearbyParkings(uiState.mapCenterLat, uiState.mapCenterLon) })
         }
     }
 }
@@ -152,7 +152,7 @@ private fun ParkingPopup(
                 modifier            = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(text = parking.name,    style = MaterialTheme.typography.titleSmall)
+                Text(text = parking.parkingName,    style = MaterialTheme.typography.titleSmall)
                 Text(
                     text  = parking.address,
                     style = MaterialTheme.typography.bodySmall,
@@ -160,7 +160,7 @@ private fun ParkingPopup(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     LabeledInfo(label = "Price",     value = "€ ${parking.pricePerHour}/h")
-                    LabeledInfo(label = "Available", value = "${parking.availableSlots}/${parking.totalSlots} slots")
+                    LabeledInfo(label = "Available", value = "${parking.availableSlot}/${parking.totalSlot} slots")
                 }
             }
             IconButton(onClick = onDismiss) {
@@ -238,7 +238,7 @@ private fun ParkingListItem(parking: Parking) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text(text = parking.name,    style = MaterialTheme.typography.bodyMedium)
+                Text(text = parking.parkingName,    style = MaterialTheme.typography.bodyMedium)
                 Text(
                     text  = parking.address,
                     style = MaterialTheme.typography.bodySmall,
@@ -247,19 +247,14 @@ private fun ParkingListItem(parking: Parking) {
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text  = "${parking.distanceKm} km",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
                     text  = "€ ${parking.pricePerHour}/h",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text  = "${parking.availableSlots}/${parking.totalSlots} slots",
+                    text  = "${parking.availableSlot}/${parking.totalSlot} slots",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (parking.availableSlots > 0)
+                    color = if (parking.availableSlot > 0)
                         MaterialTheme.colorScheme.tertiary
                     else
                         MaterialTheme.colorScheme.error
@@ -268,14 +263,6 @@ private fun ParkingListItem(parking: Parking) {
         }
     }
 }
-
-// ── expect declaration for the platform WebView ───────────────────────────────
-// NOTE: the `expect` keyword lives here in commonMain.
-// The `actual` implementations are:
-//   androidMain/.../screen/WebMapView.android.kt  (AndroidView + WebView)
-//   iosMain/.../screen/WebMapView.ios.kt          (UIKitView + WKWebView)
-// The iOS actual imports androidx.compose.ui.interop.UIKitView which is
-// iosMain-only — that import must NOT appear in this commonMain file.
 
 @Composable
 expect fun WebMapView(

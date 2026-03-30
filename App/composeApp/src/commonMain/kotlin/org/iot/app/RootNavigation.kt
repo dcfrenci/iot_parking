@@ -23,6 +23,7 @@ import org.iot.app.screens.SettingsScreen
 
 // New imports for Auth
 import org.iot.app.screen.login.LoginScreen
+import org.iot.app.screen.login.LoginViewModel
 import org.iot.app.screen.register.RegisterViewModel
 
 import org.jetbrains.compose.resources.DrawableResource
@@ -45,18 +46,22 @@ sealed class Screen(
 
 @Composable
 fun RootNavigation(
-    getNearbyParkings  : GetNearbyParkingsUseCase,
-    getCurrentParking  : GetCurrentParkingUseCase,
-    getBookings        : GetBookingsUseCase,
-    createBooking      : CreateBookingUseCase,
-    updateBookingPlate : UpdateBookingPlateUseCase,
-    getUser            : GetUserUseCase,
-    getPlates          : GetPlatesUseCase,
-    setPlateActive     : SetPlateActiveUseCase,
-    addPlate           : AddPlateUseCase,
-    getPaymentMethod   : GetPaymentMethodUseCase,
-    getPreferences     : GetPreferencesUseCase,
-    savePreferences    : SavePreferencesUseCase,
+    login               : LoginUseCase,
+    register            : RegisterUseCase,
+    getNearbyParkings   : GetNearbyParkingsUseCase,
+    getActiveSessions   : GetActiveSessionsUseCase,
+    getBookings         : GetBookingsUseCase,
+    createBooking       : CreateBookingUseCase,
+    updateBooking       : UpdateBookingUseCase,
+    deleteBooking       : DeleteBookingUseCase,
+    getUser             : GetUserUseCase,
+    getPlates           : GetPlatesUseCase,
+    addPlate            : AddPlateUseCase,
+    deletePlate         : DeletePlateUseCase,
+    getPaymentMethod    : GetPaymentMethodUseCase,
+    updatePaymentMethod : UpdatePaymentMethodUseCase,
+    getPreferences      : GetPreferencesUseCase,
+    savePreferences     : SavePreferencesUseCase,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -66,33 +71,40 @@ fun RootNavigation(
     val bottomNavScreens = listOf(Screen.Map, Screen.Home, Screen.Settings)
     val showBottomBar = bottomNavScreens.any { it.route == currentRoute }
 
+    val loginViewModel = remember {
+        LoginViewModel(login)
+    }
+
+    val registerViewModel = remember {
+        RegisterViewModel(register)
+    }
+
     val mapViewModel = remember {
         MapViewModel(getNearbyParkings)
     }
+
     val homeViewModel = remember {
         HomeViewModel(
-            getCurrentParking  = getCurrentParking,
-            getBookings        = getBookings,
-            getPlates          = getPlates,
-            createBooking      = createBooking,
-            updateBookingPlate = updateBookingPlate,
-        )
-    }
-    val settingsViewModel = remember {
-        SettingsViewModel(
-            getUser          = getUser,
-            getPlates        = getPlates,
-            setPlateActive   = setPlateActive,
-            addPlate         = addPlate,
-            getPaymentMethod = getPaymentMethod,
-            getPreferences   = getPreferences,
-            savePreferences  = savePreferences,
+            getActiveSessions = getActiveSessions,
+            getBookings       = getBookings,
+            getPlates         = getPlates,
+            createBooking     = createBooking,
+            updateBooking     = updateBooking,
+            deleteBooking     = deleteBooking,
         )
     }
 
-    // 3. Initialize the RegisterViewModel
-    val registerViewModel = remember {
-        RegisterViewModel()
+    val settingsViewModel = remember {
+        SettingsViewModel(
+            getUser             = getUser,
+            getPlates           = getPlates,
+            addPlate            = addPlate,
+            deletePlate         = deletePlate,
+            getPaymentMethod    = getPaymentMethod,
+            updatePaymentMethod = updatePaymentMethod,
+            getPreferences      = getPreferences,
+            savePreferences     = savePreferences,
+        )
     }
 
     Scaffold(
@@ -133,6 +145,7 @@ fun RootNavigation(
             // --- Auth Routes ---
             composable(Screen.Login.route) {
                 LoginScreen(
+                    viewModel = loginViewModel,
                     onLoginSuccess = {
                         // Navigate to Home and clear the login screen from the back history
                         navController.navigate(Screen.Home.route) {

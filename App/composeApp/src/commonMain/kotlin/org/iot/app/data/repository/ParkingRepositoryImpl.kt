@@ -1,75 +1,86 @@
 package org.iot.app.data.repository
 
 import org.iot.app.data.remote.ParkingApi
-import org.iot.app.data.remote.dto.BookingDto
-import org.iot.app.data.remote.dto.CreateBookingDto
-import org.iot.app.data.remote.dto.CurrentParkingDto
-import org.iot.app.data.remote.dto.ParkingDto
-import org.iot.app.data.remote.dto.UpdateBookingPlateDto
-import org.iot.app.domain.model.Booking
-import org.iot.app.domain.model.CurrentParking
-import org.iot.app.domain.model.Parking
+import org.iot.app.data.remote.dto.*
+import org.iot.app.domain.model.*
 import org.iot.app.domain.repository.ParkingRepository
 
 class ParkingRepositoryImpl(
     private val api: ParkingApi
 ) : ParkingRepository {
 
-    override suspend fun getNearbyParkings(lat: Double, lon: Double): Result<List<Parking>> =
-        runCatching { api.getNearbyParkings(lat, lon).map { it.toDomain() } }
+    override suspend fun getNearbyParkings(lat: Double, lon: Double, range: Int): Result<List<ParkingRange>> =
+        runCatching { api.getNearbyParkings(lat, lon, range).map { ParkingRange(it.parking.toDomain(), it.distance) } }
 
-    override suspend fun getCurrentParking(): Result<CurrentParking?> =
-        runCatching { api.getCurrentParking()?.toDomain() }
+    override suspend fun getActiveSessions(accountId: Int): Result<List<Session>> =
+        runCatching { api.getActiveSessions(accountId).map { it.toDomain() } }
 
-    override suspend fun getBookings(): Result<List<Booking>> =
-        runCatching { api.getBookings().map { it.toDomain() } }
+    override suspend fun getBookings(accountId: Int): Result<List<Booking>> =
+        runCatching { api.getBookings(accountId).map { it.toDomain() } }
 
-    override suspend fun createBooking(
-        name: String,
-        parkingId: String,
-        carPlate: String,
-        days: Int,
-    ): Result<Booking> = runCatching {
-        api.createBooking(CreateBookingDto(name, parkingId, carPlate, days)).toDomain()
+    override suspend fun createBooking(accountId: Int, booking: Booking): Result<Booking> = runCatching {
+        api.createBooking(BookingRequest(accountId, booking.toDto())).toDomain()
     }
 
-    override suspend fun updateBookingPlate(bookingId: String, carPlate: String): Result<Booking> =
-        runCatching {
-            api.updateBookingPlate(bookingId, UpdateBookingPlateDto(carPlate)).toDomain()
-        }
+    override suspend fun updateBooking(accountId: Int, booking: Booking): Result<Booking> = runCatching {
+        api.updateBooking(BookingRequest(accountId, booking.toDto())).toDomain()
+    }
+
+    override suspend fun deleteBooking(accountId: Int, bookingId: Int): Result<Unit> =
+        runCatching { api.deleteBooking(accountId, bookingId) }
 
     // ── Mappers ───────────────────────────────────────────────────────────────
 
     private fun ParkingDto.toDomain() = Parking(
-        id             = id,
-        name           = name,
-        address        = address,
-        latitude       = latitude,
-        longitude      = longitude,
-        availableSlots = availableSlots,
-        totalSlots     = totalSlots,
-        pricePerHour   = pricePerHour,
-        distanceKm     = distanceKm,
+        parkingId = parkingId,
+        parkingName = parkingName,
+        address = address,
+        latitude = lat,
+        longitude = lon,
+        availableSlot = availableSlot,
+        totalSlot = totalSlot,
+        pricePerHour = pricePerHour,
     )
+
+    private fun Parking.toDto() = ParkingDto(
+        parkingId = parkingId,
+        parkingName = parkingName,
+        address = address,
+        lat = latitude,
+        lon = longitude,
+        availableSlot = availableSlot,
+        totalSlot = totalSlot,
+        pricePerHour = pricePerHour,
+    )
+
+    private fun PlateDto.toDomain() = Plate(plateId, plateName, plateText, isActive, imageUri)
+    private fun Plate.toDto() = PlateDto(plateId, plateText, name, isActive, imageUri)
 
     private fun BookingDto.toDomain() = Booking(
-        id          = id,
-        name        = name,
-        parkingId   = parkingId,
-        parkingName = parkingName,
-        date        = date,
-        carPlate    = carPlate,
-        slotCode    = slotCode,
-        days        = days,
-        pricePerHour = pricePerHour,
+        bookingId = bookingId,
+        bookingName = bookingName,
+        parking = parking.toDomain(),
+        plate = plate.toDomain(),
+        date = date,
+        days = days,
+        slotCode = slotCode,
     )
 
-    private fun CurrentParkingDto.toDomain() = CurrentParking(
-        parkingName  = parkingName,
-        carPlate     = carPlate,
-        pricePerHour = pricePerHour,
-        startedAt    = startedAt,
-        latitude     = latitude,
-        longitude    = longitude,
+    private fun Booking.toDto() = BookingDto(
+        bookingId = bookingId,
+        bookingName = bookingName,
+        parking = parking.toDto(),
+        plate = plate.toDto(),
+        date = date,
+        days = days,
+        slotCode = slotCode,
+    )
+
+    private fun SessionDto.toDomain() = Session(
+        plate = plate.toDomain(),
+        parking = parking.toDomain(),
+        entryTime = entryTime,
+        amount = amount,
+        isPaid = isPaid,
     )
 }

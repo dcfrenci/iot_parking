@@ -18,7 +18,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import org.iot.app.domain.model.Booking
-import org.iot.app.domain.model.CurrentParking
+import org.iot.app.domain.model.Session
 import org.iot.app.domain.model.Parking
 import org.iot.app.domain.model.Plate
 import org.iot.app.screen.home.HomeUiState
@@ -62,7 +62,7 @@ fun HomeScreen(viewModel: HomeViewModel) {
 
     if (uiState.isNewBookingDialogOpen) {
         NewBookingDialog(
-            availableParkings = emptyList(),
+            availableParkings = emptyList(), // Provide this if needed
             availablePlates   = uiState.plates,
             onConfirm         = { name, parkingId, plate, days ->
                 viewModel.submitNewBooking(
@@ -79,10 +79,10 @@ fun HomeScreen(viewModel: HomeViewModel) {
     }
 
     uiState.editingBookingId?.let { bookingId ->
-        val booking = uiState.bookings.firstOrNull { it.id == bookingId }
+        val booking = uiState.bookings.firstOrNull { it.bookingId == bookingId }
         if (booking != null) {
             EditPlateDialog(
-                currentPlate    = booking.carPlate,
+                currentPlate    = booking.plate.plateText,
                 availablePlates = uiState.plates,
                 onConfirm       = { newPlate -> viewModel.changeBookingPlate(bookingId, newPlate) },
                 onDismiss       = { viewModel.closeEditPlateDialog() },
@@ -98,8 +98,8 @@ private fun HomeContent(
     uiState: HomeUiState,
     onToggleParkingDetail: () -> Unit,
     onSecurityChange: (SecurityAlerts) -> Unit,
-    onToggleBooking: (String) -> Unit,
-    onOpenEditPlate: (String) -> Unit,
+    onToggleBooking: (Int) -> Unit,
+    onOpenEditPlate: (Int) -> Unit,
     onOpenNewBooking: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -112,9 +112,12 @@ private fun HomeContent(
         ) {
             item { SectionTitle("Currently parked") }
             item {
-                if (uiState.currentParking != null) {
+                // Using the first active session as the main "Current Parking"
+                val activeSession = uiState.activeSessions.firstOrNull()
+
+                if (activeSession != null) {
                     CurrentlyParkedCard(
-                        parking          = uiState.currentParking,
+                        session          = activeSession,
                         isExpanded       = uiState.isParkingDetailExpanded,
                         securityAlerts   = uiState.securityAlerts,
                         onToggleExpand   = onToggleParkingDetail,
@@ -143,9 +146,9 @@ private fun HomeContent(
                 items(uiState.bookings) { booking ->
                     BookedParkCard(
                         booking     = booking,
-                        isExpanded  = uiState.expandedBookingId == booking.id,
-                        onToggle    = { onToggleBooking(booking.id) },
-                        onEditPlate = { onOpenEditPlate(booking.id) },
+                        isExpanded  = uiState.expandedBookingId == booking.bookingId,
+                        onToggle    = { onToggleBooking(booking.bookingId) },
+                        onEditPlate = { onOpenEditPlate(booking.bookingId) },
                     )
                 }
             }
@@ -169,15 +172,15 @@ private fun SectionTitle(title: String) {
 
 @Composable
 private fun CurrentlyParkedCard(
-    parking: CurrentParking,
+    session: Session,
     isExpanded: Boolean,
     securityAlerts: SecurityAlerts,
     onToggleExpand: () -> Unit,
     onSecurityChange: (SecurityAlerts) -> Unit,
 ) {
     val uriHandler   = LocalUriHandler.current
-    val elapsedHours = remember(parking.startedAt) { computeElapsedHours(parking.startedAt) }
-    val currentCost  = kotlin.math.round(elapsedHours * parking.pricePerHour * 100) / 100.0
+    val elapsedHours = remember(session.entryTime) { computeElapsedHours(session.entryTime) }
+    val currentCost  = kotlin.math.round(elapsedHours * session.parking.pricePerHour * 100) / 100.0
 
     Card(
         modifier  = Modifier.fillMaxWidth(),
@@ -188,20 +191,19 @@ private fun CurrentlyParkedCard(
             modifier            = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Header — always visible
             Row(
                 modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(parking.carPlate,   style = MaterialTheme.typography.bodyLarge,
+                    Text(session.plate.plateText,   style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text(parking.parkingName, style = MaterialTheme.typography.bodySmall,
+                    Text(session.parking.parkingName, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("€ ${parking.pricePerHour}/h", style = MaterialTheme.typography.titleSmall,
+                    Text("€ ${session.parking.pricePerHour}/h", style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     IconButton(onClick = onToggleExpand) {
@@ -216,12 +218,11 @@ private fun CurrentlyParkedCard(
                 }
             }
 
-            // Expanded body — plain `if`, no AnimatedVisibility
             if (isExpanded) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    InfoChip(Res.drawable.timer, "Entered",      formatStartedAt(parking.startedAt))
+                    InfoChip(Res.drawable.timer, "Entered",      formatStartedAt(session.entryTime))
                     InfoChip(Res.drawable.euro,  "Current cost", "€ $currentCost")
                 }
 
@@ -248,7 +249,7 @@ private fun CurrentlyParkedCard(
                         onClick  = {
                             uriHandler.openUri(
                                 "https://www.google.com/maps/dir/?api=1" +
-                                        "&destination=${parking.latitude},${parking.longitude}" +
+                                        "&destination=${session.parking.latitude},${session.parking.longitude}" +
                                         "&travelmode=driving"
                             )
                         },
@@ -300,7 +301,7 @@ private fun BookedParkCard(
     onToggle: () -> Unit,
     onEditPlate: () -> Unit,
 ) {
-    val totalCost = booking.days * 24 * booking.pricePerHour
+    val totalCost = booking.days * 24 * booking.parking.pricePerHour
 
     Card(
         modifier  = Modifier.fillMaxWidth(),
@@ -317,10 +318,10 @@ private fun BookedParkCard(
                 verticalAlignment     = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(booking.name,        style = MaterialTheme.typography.bodyLarge)
-                    Text(booking.carPlate,    style = MaterialTheme.typography.bodySmall,
+                    Text(booking.bookingName,        style = MaterialTheme.typography.bodyLarge)
+                    Text(booking.plate.plateText,    style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(booking.parkingName, style = MaterialTheme.typography.bodySmall,
+                    Text(booking.parking.parkingName, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = onToggle) {
@@ -337,7 +338,7 @@ private fun BookedParkCard(
                 HorizontalDivider()
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     LabelValue("Duration",   "${booking.days} day(s)")
-                    LabelValue("Rate",       "€ ${booking.pricePerHour}/h")
+                    LabelValue("Rate",       "€ ${booking.parking.pricePerHour}/h")
                     LabelValue("Total cost", "€ ${formatPrice(totalCost)}")
                 }
                 Text("Slot: ${booking.slotCode}", style = MaterialTheme.typography.bodySmall,
@@ -365,7 +366,7 @@ private fun LabelValue(label: String, value: String) {
 private fun NewBookingDialog(
     availableParkings: List<Parking>,
     availablePlates: List<Plate>,
-    onConfirm: (name: String, parkingId: String, plate: String, days: Int) -> Unit,
+    onConfirm: (name: String, parkingId: Int, plate: String, days: Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var step            by remember { mutableStateOf(0) }
@@ -382,7 +383,7 @@ private fun NewBookingDialog(
     val filtered = remember(parkingQuery, availableParkings) {
         if (parkingQuery.isBlank()) availableParkings
         else availableParkings.filter {
-            it.name.contains(parkingQuery, ignoreCase = true) ||
+            it.parkingName.contains(parkingQuery, ignoreCase = true) ||
                     it.address.contains(parkingQuery, ignoreCase = true)
         }
     }
@@ -408,16 +409,16 @@ private fun NewBookingDialog(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape    = MaterialTheme.shapes.small,
-                                color    = if (selectedParking?.id == parking.id)
+                                color    = if (selectedParking?.parkingId == parking.parkingId)
                                     MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceVariant,
-                                onClick  = { selectedParking = parking; parkingQuery = parking.name }
+                                onClick  = { selectedParking = parking; parkingQuery = parking.parkingName }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(parking.name, style = MaterialTheme.typography.bodySmall)
+                                    Text(parking.parkingName, style = MaterialTheme.typography.bodySmall)
                                     Text("€${parking.pricePerHour}/h", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
@@ -445,7 +446,7 @@ private fun NewBookingDialog(
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     ConfirmRow("Booking name", bookingName)
-                    ConfirmRow("Parking",      selectedParking?.name ?: "-")
+                    ConfirmRow("Parking",      selectedParking?.parkingName ?: "-")
                     ConfirmRow("Plate",        selectedPlate)
                     ConfirmRow("Duration",     "$days day(s)")
                     ConfirmRow("Rate",         "€ $price/h")
@@ -459,7 +460,7 @@ private fun NewBookingDialog(
                 onClick = {
                     if (step == 0) step = 1
                     else {
-                        val pId = selectedParking?.id ?: return@Button
+                        val pId = selectedParking?.parkingId ?: return@Button
                         onConfirm(bookingName, pId, selectedPlate, days)
                     }
                 },
@@ -536,11 +537,6 @@ private fun EditPlateDialog(
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/**
- * Computes elapsed hours from an ISO-8601 UTC string using kotlinx-datetime 0.6.0.
- * API: Instant.parse(), Clock.System.now(), minus operator returns Duration,
- * Duration.inWholeSeconds (not inWholeMinutes in 0.6.0 — use inWholeSeconds / 3600.0).
- */
 private fun computeElapsedHours(startedAt: String): Double {
     return try {
         val start    = Instant.parse(startedAt)
@@ -552,30 +548,20 @@ private fun computeElapsedHours(startedAt: String): Double {
     }
 }
 
-/**
- * Formats ISO-8601 UTC string to "HH:mm DD/MM/YYYY" in the device local timezone.
- * Uses kotlinx-datetime 0.6.0: toLocalDateTime(TimeZone) returns LocalDateTime,
- * whose properties are .hour, .minute, .dayOfMonth, .monthNumber, .year.
- */
 private fun formatStartedAt(startedAt: String): String {
     return try {
         val instant = Instant.parse(startedAt)
         val local   = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-        // Pad manually — no String.format in commonMain
         val h  = local.hour.toString().padStart(2, '0')
         val m  = local.minute.toString().padStart(2, '0')
         val d  = local.day.toString().padStart(2, '0')
-        val mo = local.month.number.toString().padStart(2, '0')
+        val mo = local.month.toString().padStart(2, '0')
         "$h:$m $d/$mo/${local.year}"
     } catch (_: Exception) {
         startedAt
     }
 }
 
-/**
- * KMP-safe price formatting — no String.format("%.2f") which is JVM-only.
- * Rounds to 2 decimal places and builds the string manually.
- */
 private fun formatPrice(value: Double): String {
     val rounded  = kotlin.math.round(value * 100) / 100.0
     val intPart  = rounded.toLong()

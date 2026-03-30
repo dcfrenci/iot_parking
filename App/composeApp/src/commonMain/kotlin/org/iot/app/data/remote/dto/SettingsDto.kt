@@ -5,42 +5,58 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class UserDto(
-    val id: String,
+    @SerialName("account_id") val accountId: Int,
     val name: String,
     val email: String,
 )
 
 @Serializable
 data class PlateDto(
-    val id: String,
-    val name: String,
+    @SerialName("plate_id") val plateId: Int,
     @SerialName("plate_text") val plateText: String,
+    @SerialName("plate_name") val plateName: String,
     @SerialName("is_active") val isActive: Boolean,
     @SerialName("image_uri") val imageUri: String? = null,
 )
 
 @Serializable
 data class CreatePlateDto(
-    val name: String,
+    @SerialName("account_id") val accountId: Int,
     @SerialName("plate_text") val plateText: String,
-    @SerialName("image_uri") val imageUri: String? = null,
-    @SerialName("user_id") val userId: Int = 1,
-)
-
-@Serializable
-data class PlateActiveUpdate(
-    @SerialName("is_active") val isActive: Boolean,
+    @SerialName("plate_name") val plateName: String,
+    @SerialName("image_uri") val imageUri: String = "",
 )
 
 @Serializable
 data class PaymentMethodDto(
-    val id: String,
-    @SerialName("last_four") val lastFour: String,
-    val brand: String,
+    val circuit: String,
+    @SerialName("card_number") val cardNumber: String,
 )
 
 @Serializable
-data class ParkingPreferencesDto(
-    @SerialName("max_distance_km") val maxDistanceKm: Double,
-    @SerialName("max_price_per_hour") val maxPricePerHour: Double,
+data class UpdatePaymentDto(
+    @SerialName("account_id") val accountId: Int,
+    val payment: PaymentMethodDto
+)
+
+@Serializable
+data class DistancePreferenceDto(
+    @SerialName("distance_value") val distanceValue: Double
+)
+
+@Serializable
+data class UpdateDistancePreferenceDto(
+    @SerialName("account_id") val accountId: Int,
+    @SerialName("new_distance") val newDistance: Double
+)
+
+@Serializable
+data class PricePreferenceDto(
+    @SerialName("price_value") val priceValue: Double
+)
+
+@Serializable
+data class UpdatePricePreferenceDto(
+    @SerialName("account_id") val accountId: Int,
+    @SerialName("new_price") val newPrice: Double
 )

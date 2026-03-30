@@ -49,7 +49,7 @@ actual fun WebMapView(
                 // 3. Use the named class to prevent minification/ProGuard issues
                 addJavascriptInterface(
                     MapJsBridge { parkingId ->
-                        currentParkings.firstOrNull { it.id == parkingId }
+                        currentParkings.firstOrNull { it.parkingId.toString() == parkingId }
                             ?.let { currentOnPinClicked(it) }
                     },
                     "AndroidBridge"
@@ -94,11 +94,11 @@ private fun buildMapHtml(
     parkings: List<Parking>,
 ): String {
     val markers = parkings.joinToString("\n") { p ->
-        val color = if (p.availableSlots > 0) "#4CAF50" else "#F44336"
-        val name = p.name.replace("'", "\\'")
+        val color = if (p.availableSlot > 0) "#4CAF50" else "#F44336"
+        val name = p.parkingName.replace("'", "\\'")
         """L.circleMarker([${p.latitude},${p.longitude}],{radius:12,color:'$color',fillColor:'$color',fillOpacity:0.85,weight:2})
-          .bindPopup('<b>$name</b><br/>€${p.pricePerHour}/h · ${p.availableSlots}/${p.totalSlots} slots')
-          .on('click',function(){AndroidBridge.onParkingSelected('${p.id}');})
+          .bindPopup('<b>$name</b><br/>€${p.pricePerHour}/h · ${p.availableSlot}/${p.totalSlot} slots')
+          .on('click',function(){AndroidBridge.onParkingSelected('${p.parkingId}');})
           .addTo(map);"""
     }
     return """<!DOCTYPE html><html><head>

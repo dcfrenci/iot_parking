@@ -10,11 +10,18 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun LoginScreen(
+    viewModel: LoginViewModel, // Added the missing parameter!
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val uiState by viewModel.state.collectAsState()
+
+    // Listen for the success state and trigger the navigation callback
+    LaunchedEffect(uiState.isSuccess) {
+        if (uiState.isSuccess) {
+            onLoginSuccess()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -29,38 +36,61 @@ fun LoginScreen(
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
+        // Show error message if login fails
+        uiState.error?.let { error ->
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
+            value = uiState.email,
+            onValueChange = { viewModel.onEmailChange(it) },
             label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            enabled = !uiState.isLoading
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
+            value = uiState.password,
+            onValueChange = { viewModel.onPasswordChange(it) },
             label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            enabled = !uiState.isLoading
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = {
-                // TODO: Add actual login validation here
-                onLoginSuccess()
-            },
-            modifier = Modifier.fillMaxWidth().height(50.dp)
+            onClick = { viewModel.login() },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            enabled = !uiState.isLoading
         ) {
-            Text("Login")
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Login")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton(onClick = onNavigateToRegister) {
+        TextButton(
+            onClick = onNavigateToRegister,
+            enabled = !uiState.isLoading
+        ) {
             Text("Don't have an account? Register")
         }
     }

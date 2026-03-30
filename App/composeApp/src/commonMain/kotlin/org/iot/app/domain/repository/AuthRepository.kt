@@ -1,10 +1,10 @@
 package org.iot.app.domain.repository
 
-import org.iot.app.data.remote.dto.AuthResponse
 import org.iot.app.data.remote.dto.LoginRequest
 import org.iot.app.data.remote.dto.RegisterRequest
+import org.iot.app.domain.model.User
 
 interface AuthRepository {
-    suspend fun login(request: LoginRequest): Result<AuthResponse>
-    suspend fun register(request: RegisterRequest): Result<AuthResponse>
+    suspend fun login(request: LoginRequest): Result<User>
+    suspend fun register(request: RegisterRequest): Result<User>
 }

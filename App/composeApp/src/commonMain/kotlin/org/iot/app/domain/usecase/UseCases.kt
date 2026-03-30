@@ -1,12 +1,6 @@
 package org.iot.app.domain.usecase
 
-import org.iot.app.domain.model.Booking
-import org.iot.app.domain.model.CurrentParking
-import org.iot.app.domain.model.Parking
-import org.iot.app.domain.model.ParkingPreferences
-import org.iot.app.domain.model.PaymentMethod
-import org.iot.app.domain.model.Plate
-import org.iot.app.domain.model.User
+import org.iot.app.domain.model.*
 import org.iot.app.domain.repository.ParkingRepository
 import org.iot.app.domain.repository.SettingsRepository
 import org.iot.app.data.remote.dto.LoginRequest
@@ -26,70 +20,77 @@ class RegisterUseCase(private val repository: AuthRepository) {
 // ── Parking ───────────────────────────────────────────────────────────────────
 
 class GetNearbyParkingsUseCase(private val repository: ParkingRepository) {
-    suspend operator fun invoke(lat: Double, lon: Double): Result<List<Parking>> =
-        repository.getNearbyParkings(lat, lon)
+    suspend operator fun invoke(lat: Double, lon: Double, range: Int = 5000): Result<List<ParkingRange>> =
+        repository.getNearbyParkings(lat, lon, range)
 }
 
-class GetCurrentParkingUseCase(private val repository: ParkingRepository) {
-    suspend operator fun invoke(): Result<CurrentParking?> =
-        repository.getCurrentParking()
+class GetActiveSessionsUseCase(private val repository: ParkingRepository) {
+    suspend operator fun invoke(accountId: Int): Result<List<Session>> =
+        repository.getActiveSessions(accountId)
 }
 
 class GetBookingsUseCase(private val repository: ParkingRepository) {
-    suspend operator fun invoke(): Result<List<Booking>> =
-        repository.getBookings()
+    suspend operator fun invoke(accountId: Int): Result<List<Booking>> =
+        repository.getBookings(accountId)
 }
 
 class CreateBookingUseCase(private val repository: ParkingRepository) {
-    suspend operator fun invoke(
-        name: String,
-        parkingId: String,
-        carPlate: String,
-        days: Int,
-    ): Result<Booking> = repository.createBooking(name, parkingId, carPlate, days)
+    suspend operator fun invoke(accountId: Int, booking: Booking): Result<Booking> =
+        repository.createBooking(accountId, booking)
 }
 
-class UpdateBookingPlateUseCase(private val repository: ParkingRepository) {
-    suspend operator fun invoke(bookingId: String, carPlate: String): Result<Booking> =
-        repository.updateBookingPlate(bookingId, carPlate)
+class UpdateBookingUseCase(private val repository: ParkingRepository) {
+    suspend operator fun invoke(accountId: Int, booking: Booking): Result<Booking> =
+        repository.updateBooking(accountId, booking)
+}
+
+class DeleteBookingUseCase(private val repository: ParkingRepository) {
+    suspend operator fun invoke(accountId: Int, bookingId: Int): Result<Unit> =
+        repository.deleteBooking(accountId, bookingId)
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 class GetUserUseCase(private val repository: SettingsRepository) {
-    suspend operator fun invoke(): Result<User> =
-        repository.getUser()
+    suspend operator fun invoke(accountId: Int): Result<User> =
+        repository.getUser(accountId)
 }
 
 class GetPlatesUseCase(private val repository: SettingsRepository) {
-    suspend operator fun invoke(): Result<List<Plate>> =
-        repository.getPlates()
-}
-
-class SetPlateActiveUseCase(private val repository: SettingsRepository) {
-    suspend operator fun invoke(plateId: String, isActive: Boolean): Result<Unit> =
-        repository.setPlateActive(plateId, isActive)
+    suspend operator fun invoke(accountId: Int): Result<List<Plate>> =
+        repository.getPlates(accountId)
 }
 
 class AddPlateUseCase(private val repository: SettingsRepository) {
     suspend operator fun invoke(
+        accountId: Int,
         name: String,
         plateText: String,
         imageUri: String?,
-    ): Result<Plate> = repository.addPlate(name, plateText, imageUri)
+    ): Result<Plate> = repository.addPlate(accountId, name, plateText, imageUri)
+}
+
+class DeletePlateUseCase(private val repository: SettingsRepository) {
+    suspend operator fun invoke(accountId: Int, plateId: Int): Result<Unit> =
+        repository.deletePlate(accountId, plateId)
 }
 
 class GetPaymentMethodUseCase(private val repository: SettingsRepository) {
-    suspend operator fun invoke(): Result<PaymentMethod> =
-        repository.getPaymentMethod()
+    suspend operator fun invoke(accountId: Int): Result<PaymentMethod> =
+        repository.getPaymentMethod(accountId)
+}
+
+class UpdatePaymentMethodUseCase(private val repository: SettingsRepository) {
+    suspend operator fun invoke(accountId: Int, payment: PaymentMethod): Result<PaymentMethod> =
+        repository.updatePaymentMethod(accountId, payment)
 }
 
 class GetPreferencesUseCase(private val repository: SettingsRepository) {
-    suspend operator fun invoke(): Result<ParkingPreferences> =
-        repository.getPreferences()
+    suspend operator fun invoke(accountId: Int): Result<ParkingPreferences> =
+        repository.getPreferences(accountId)
 }
 
 class SavePreferencesUseCase(private val repository: SettingsRepository) {
-    suspend operator fun invoke(prefs: ParkingPreferences): Result<Unit> =
-        repository.savePreferences(prefs)
+    suspend operator fun invoke(accountId: Int, prefs: ParkingPreferences): Result<ParkingPreferences> =
+        repository.updatePreferences(accountId, prefs)
 }

@@ -2,15 +2,26 @@ package org.iot.app.screen.register
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.iot.app.data.remote.dto.RegisterRequest
+import org.iot.app.domain.SessionManager
+import org.iot.app.domain.usecase.RegisterUseCase
+
+data class RegisterUiState(
+    val name: String = "",
+    val email: String = "",
+    val password: String = "",
+    val confirmPassword: String = "",
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
+)
 
 class RegisterViewModel(
-    // Inject your use cases here later TODO
+    private val registerUseCase: RegisterUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RegisterUiState())
@@ -52,23 +63,32 @@ class RegisterViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            // Simulate network request / Use Case execution TODO
-            delay(1500)
+            val request = RegisterRequest(
+                name = currentState.name,
+                email = currentState.email,
+                password = currentState.password
+            )
 
-            // Assuming success:
-            _uiState.update { it.copy(isLoading = false) }
-            onSuccess()
+            val result = registerUseCase(request)
+
+            result.fold(
+                onSuccess = { user ->
+                    // Save the account_id globally so the Home and Settings screens can use it
+                    SessionManager.loginUser(user.accountId)
+                    _uiState.update { it.copy(isLoading = false) }
+                    onSuccess()
+                },
+                onFailure = { exception ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = exception.message ?: "Registration failed"
+                        )
+                    }
+                }
+            )
         }
     }
 }
-
-data class RegisterUiState(
-    val name: String = "",
-    val email: String = "",
-    val password: String = "",
-    val confirmPassword: String = "",
-    val isLoading: Boolean = false,
-    val errorMessage: String? = null
-)
