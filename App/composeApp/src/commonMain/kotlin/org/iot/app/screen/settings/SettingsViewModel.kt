@@ -45,15 +45,15 @@ class SettingsViewModel(
     }
 
     fun loadSettings() {
-        if (accountId == -1) return
+        if (accountId.value == -1) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                val user = getUser(accountId).getOrNull()
-                val plates = getPlates(accountId).getOrNull() ?: emptyList()
-                val payment = getPaymentMethod(accountId).getOrNull()
-                val prefs = getPreferences(accountId).getOrNull()
+                val user = getUser(accountId.value).getOrNull()
+                val plates = getPlates(accountId.value).getOrNull() ?: emptyList()
+                val payment = getPaymentMethod(accountId.value).getOrNull()
+                val prefs = getPreferences(accountId.value).getOrNull()
 
                 _uiState.update {
                     it.copy(
@@ -86,7 +86,7 @@ class SettingsViewModel(
 
     fun addNewPlate(name: String, plateText: String, imageUri: String?) {
         viewModelScope.launch {
-            addPlate(accountId, name, plateText, imageUri).onSuccess {
+            addPlate(accountId.value, name, plateText, imageUri).onSuccess {
                 closeAddPlateDialog()
                 loadSettings()
             }
@@ -95,20 +95,20 @@ class SettingsViewModel(
 
     fun removePlate(plateId: Int) {
         viewModelScope.launch {
-            deletePlate(accountId, plateId).onSuccess { loadSettings() }
+            deletePlate(accountId.value, plateId).onSuccess { loadSettings() }
         }
     }
 
     fun updatePayment(paymentMethod: PaymentMethod) {
         viewModelScope.launch {
-            updatePaymentMethod(accountId, paymentMethod).onSuccess { loadSettings() }
+            updatePaymentMethod(accountId.value, paymentMethod).onSuccess { loadSettings() }
         }
     }
 
     fun updatePrefs(distance: Double, price: Double) {
         viewModelScope.launch {
             val newPrefs = ParkingPreferences(distance, price)
-            savePreferences(accountId, newPrefs).onSuccess { loadSettings() }
+            savePreferences(accountId.value, newPrefs).onSuccess { loadSettings() }
         }
     }
 

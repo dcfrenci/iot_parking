@@ -45,14 +45,25 @@ class HomeViewModel(
     private val accountId get() = SessionManager.currentAccountId
 
     private val _uiState = MutableStateFlow(HomeUiState())
+    private var hasLoadedOnce = false
+
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
-        loadData()
+        // Start observing the session ID the moment the ViewModel is created
+        viewModelScope.launch {
+            SessionManager.currentAccountId.collect { accountId ->
+                // As soon as the accountId is valid (not -1), and we haven't loaded yet, fetch the data
+                if (accountId != -1 && !hasLoadedOnce) {
+                    loadData(accountId = accountId, isRefresh = false)
+                }
+            }
+        }
     }
 
-    fun loadData() {
+    fun loadData(accountId: Int = SessionManager.currentAccountId.value, isRefresh: Boolean = false) {
         if (accountId == -1) return
+        if (hasLoadedOnce && !isRefresh) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
@@ -69,6 +80,8 @@ class HomeViewModel(
                         plates = platesList
                     )
                 }
+
+                hasLoadedOnce = true
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
             }
@@ -126,7 +139,7 @@ class HomeViewModel(
             val dummyParking = Parking(parkingId, "", "", 0.0, 0.0, 0, 0, 0.0)
             val newBooking = Booking(0, name, dummyParking, selectedPlate, "", days, 0)
 
-            createBooking(accountId, newBooking).onSuccess {
+            createBooking(accountId.value, newBooking).onSuccess {
                 closeNewBookingDialog()
                 loadData()
                 onSuccess()
@@ -143,7 +156,7 @@ class HomeViewModel(
             val plate = _uiState.value.plates.firstOrNull { it.plateText == newPlateText } ?: return@launch
 
             val updatedBooking = booking.copy(plate = plate)
-            updateBooking(accountId, updatedBooking).onSuccess {
+            updateBooking(accountId.value, updatedBooking).onSuccess {
                 closeEditPlateDialog()
                 loadData()
             }
