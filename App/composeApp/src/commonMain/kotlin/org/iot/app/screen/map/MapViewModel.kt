@@ -13,9 +13,11 @@ import org.iot.app.domain.usecase.GetNearbyParkingsUseCase
 data class MapUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isMapExpanded: Boolean = true,
-    val mapCenterLat: Double = 44.6471, // Modena coordinates
+    val isMapExpanded: Boolean = false, // Changed to false by default
+    val mapCenterLat: Double = 44.6471,
     val mapCenterLon: Double = 10.9252,
+    val userLat: Double? = null, // Added to track the actual user location
+    val userLon: Double? = null, // Added to track the actual user location
     val parkings: List<Parking> = emptyList(),
     val selectedParking: Parking? = null
 )
@@ -30,6 +32,25 @@ class MapViewModel(
     init {
         // Fetch initially based on the default coordinates
         fetchNearbyParkings(_uiState.value.mapCenterLat, _uiState.value.mapCenterLon)
+    }
+
+    fun updateUserLocation(lat: Double, lon: Double) {
+        _uiState.update {
+            it.copy(
+                mapCenterLat = lat,
+                mapCenterLon = lon,
+                userLat = lat,
+                userLon = lon
+            )
+        }
+        // Fetch parkings based on the new actual location
+        fetchNearbyParkings(lat, lon)
+    }
+
+    fun updateMapCenter(lat: Double, lon: Double) {
+        _uiState.update { it.copy(mapCenterLat = lat, mapCenterLon = lon) }
+        // Fetch parkings based on the new actual location
+        fetchNearbyParkings(lat, lon)
     }
 
     fun fetchNearbyParkings(lat: Double, lon: Double, range: Int = 5000) {

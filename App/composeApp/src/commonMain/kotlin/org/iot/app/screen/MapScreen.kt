@@ -14,7 +14,11 @@ import androidx.compose.ui.unit.dp
 import app.composeapp.generated.resources.Res
 import app.composeapp.generated.resources.close
 import app.composeapp.generated.resources.search
+import dev.icerock.moko.permissions.Permission
+import dev.icerock.moko.permissions.compose.BindEffect
+import dev.icerock.moko.permissions.compose.rememberPermissionsControllerFactory
 import org.iot.app.domain.model.Parking
+import org.iot.app.location.rememberLocationService
 import org.iot.app.screen.map.MapUiState
 import org.iot.app.screen.map.MapViewModel
 import org.jetbrains.compose.resources.DrawableResource
@@ -27,6 +31,30 @@ import org.jetbrains.compose.resources.painterResource
 fun MapScreen(viewModel: MapViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
+
+    val factory = rememberPermissionsControllerFactory()
+    val permissionsController = remember(factory) { factory.createPermissionsController() }
+    BindEffect(permissionsController)
+
+    val locationService = rememberLocationService()
+
+    LaunchedEffect(Unit) {
+        try {
+            // Ask for location permission. Suspends until the user clicks Allow/Deny
+            permissionsController.providePermission(Permission.LOCATION)
+
+            // If we get here, permission was granted! Fetch the native coordinates.
+            val location = locationService.getCurrentLocation()
+            if (location != null) {
+                viewModel.updateMapCenter(location.lat, location.lon)
+                viewModel.updateUserLocation(location.lat, location.lon)
+            }
+        } catch (e: Exception) {
+            // Permission was denied.
+            // Do nothing: the map will safely fallback to the default Modena coordinates in your ViewModel.
+            println("Location failed or denied: ${e.message}")
+        }
+    }
 
     PullToRefreshBox(
         isRefreshing = uiState.isLoading,
@@ -104,6 +132,8 @@ private fun OsmMapCard(
                 modifier     = Modifier.fillMaxSize(),
                 centerLat    = stableCenterLat,
                 centerLon    = stableCenterLon,
+                userLat      = uiState.userLat, // Pass user Lat
+                userLon      = uiState.userLon, // Pass user Lon
                 zoom         = stableZoom,
                 parkings     = stableParkings,
                 onPinClicked = { parking -> onSelectParking(parking) },
@@ -278,6 +308,8 @@ expect fun WebMapView(
     modifier: Modifier,
     centerLat: Double,
     centerLon: Double,
+    userLat: Double?, // New
+    userLon: Double?, // New
     zoom: Int,
     parkings: List<Parking>,
     onPinClicked: (Parking) -> Unit,

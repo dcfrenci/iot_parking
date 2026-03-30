@@ -63,6 +63,8 @@ kotlin {
             implementation("io.coil-kt.coil3:coil-network-ktor3:3.1.0")
 
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+
+            implementation(libs.play.services.location)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

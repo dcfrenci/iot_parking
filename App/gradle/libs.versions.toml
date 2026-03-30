@@ -20,6 +20,8 @@ ktor = "3.1.2"
 kotlinx-serialization = "1.8.0"
 kotlinx-coroutines = "1.10.1"
 
+playServicesLocation = "21.3.0"
+
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -52,6 +54,8 @@ kotlinx-serialization   = { module = "org.jetbrains.kotlinx:kotlinx-serializatio
 kotlinx-coroutines      = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 
 ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = "ktor" }
+
+play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 
 
 [plugins]

@@ -27,6 +27,8 @@ actual fun WebMapView(
     modifier: Modifier,
     centerLat: Double,
     centerLon: Double,
+    userLat: Double?, // Add this
+    userLon: Double?, // Add this
     zoom: Int,
     parkings: List<Parking>,
     onPinClicked: (Parking) -> Unit,
