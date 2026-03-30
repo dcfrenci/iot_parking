@@ -13,11 +13,11 @@ import org.iot.app.domain.usecase.GetNearbyParkingsUseCase
 data class MapUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isMapExpanded: Boolean = false, // Changed to false by default
+    val isMapExpanded: Boolean = false,
     val mapCenterLat: Double = 44.6471,
     val mapCenterLon: Double = 10.9252,
-    val userLat: Double? = null, // Added to track the actual user location
-    val userLon: Double? = null, // Added to track the actual user location
+    val userLat: Double? = null,
+    val userLon: Double? = null,
     val parkings: List<Parking> = emptyList(),
     val selectedParking: Parking? = null
 )
@@ -27,14 +27,13 @@ class MapViewModel(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MapUiState())
+    var hasLoadedOnce = false
+        private set
     val uiState: StateFlow<MapUiState> = _uiState.asStateFlow()
 
-    init {
-        // Fetch initially based on the default coordinates
-        fetchNearbyParkings(_uiState.value.mapCenterLat, _uiState.value.mapCenterLon)
-    }
+    // REMOVED THE INIT BLOCK! The UI's LaunchedEffect now handles the first load.
 
-    fun updateUserLocation(lat: Double, lon: Double) {
+    fun updateUserLocation(lat: Double, lon: Double, isRefresh: Boolean = false) {
         _uiState.update {
             it.copy(
                 mapCenterLat = lat,
@@ -43,28 +42,36 @@ class MapViewModel(
                 userLon = lon
             )
         }
-        // Fetch parkings based on the new actual location
-        fetchNearbyParkings(lat, lon)
+        // Pass the flag down to the fetch function
+        fetchNearbyParkings(lat, lon, isRefresh)
     }
 
     fun updateMapCenter(lat: Double, lon: Double) {
         _uiState.update { it.copy(mapCenterLat = lat, mapCenterLon = lon) }
-        // Fetch parkings based on the new actual location
         fetchNearbyParkings(lat, lon)
     }
 
-    fun fetchNearbyParkings(lat: Double, lon: Double, range: Int = 5000) {
+    fun fetchNearbyParkings(lat: Double, lon: Double, isRefresh: Boolean = false, range: Int = 5000) {
+        if (hasLoadedOnce && !isRefresh) return
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            getNearbyParkings(lat, lon, range).onSuccess { parkingRanges ->
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        parkings = parkingRanges.map { pr -> pr.parking }
-                    )
+            try {
+                getNearbyParkings(lat, lon, range).onSuccess { parkingRanges ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            parkings = parkingRanges.map { pr -> pr.parking }
+                        )
+                    }
+                }.onFailure { err ->
+                    _uiState.update { it.copy(isLoading = false, error = err.message) }
                 }
-            }.onFailure { err ->
-                _uiState.update { it.copy(isLoading = false, error = err.message) }
+
+                // Lock the screen so it doesn't reload automatically next time you switch tabs
+                hasLoadedOnce = true
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = e.message) }
             }
         }
     }

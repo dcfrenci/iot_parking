@@ -10,6 +10,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.composeapp.generated.resources.Res
 import app.composeapp.generated.resources.close
@@ -17,11 +18,11 @@ import app.composeapp.generated.resources.search
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.compose.BindEffect
 import dev.icerock.moko.permissions.compose.rememberPermissionsControllerFactory
+import kotlinx.coroutines.launch
 import org.iot.app.domain.model.Parking
 import org.iot.app.location.rememberLocationService
 import org.iot.app.screen.map.MapUiState
 import org.iot.app.screen.map.MapViewModel
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 // ── Root ──────────────────────────────────────────────────────────────────────
@@ -38,63 +39,117 @@ fun MapScreen(viewModel: MapViewModel) {
 
     val locationService = rememberLocationService()
 
-    LaunchedEffect(Unit) {
-        try {
-            // Ask for location permission. Suspends until the user clicks Allow/Deny
-            permissionsController.providePermission(Permission.LOCATION)
+    val scope = rememberCoroutineScope()
+    var isFetchingLocation by remember { mutableStateOf(false) }
 
-            // If we get here, permission was granted! Fetch the native coordinates.
-            val location = locationService.getCurrentLocation()
-            if (location != null) {
-                viewModel.updateMapCenter(location.lat, location.lon)
-                viewModel.updateUserLocation(location.lat, location.lon)
+    val refreshLocationAndData = { isRefresh: Boolean ->
+        if (!viewModel.hasLoadedOnce || isRefresh) {
+            scope.launch {
+                isFetchingLocation = true
+                try {
+                    permissionsController.providePermission(Permission.LOCATION)
+                    val location = locationService.getCurrentLocation()
+
+                    if (location != null) {
+                        viewModel.updateUserLocation(location.lat, location.lon, isRefresh)
+                    } else {
+                        viewModel.fetchNearbyParkings(uiState.mapCenterLat, uiState.mapCenterLon, isRefresh)
+                    }
+                } catch (e: Exception) {
+                    println("Location failed or denied: ${e.message}")
+                    viewModel.fetchNearbyParkings(uiState.mapCenterLat, uiState.mapCenterLon, isRefresh)
+                } finally {
+                    isFetchingLocation = false
+                }
             }
-        } catch (e: Exception) {
-            // Permission was denied.
-            // Do nothing: the map will safely fallback to the default Modena coordinates in your ViewModel.
-            println("Location failed or denied: ${e.message}")
         }
     }
 
-    PullToRefreshBox(
-        isRefreshing = uiState.isLoading,
-        onRefresh = { viewModel.fetchNearbyParkings(uiState.mapCenterLat, uiState.mapCenterLon) },
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(
-            modifier            = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    LaunchedEffect(Unit) {
+        refreshLocationAndData(false)
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // Calculate the exact height for the expanded map (Total height - Search bar and paddings)
+        val expandedMapHeight = maxHeight - 100.dp
+
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading || isFetchingLocation,
+            onRefresh = { refreshLocationAndData(true) },
+            modifier = Modifier.fillMaxSize()
         ) {
-            OutlinedTextField(
-                value         = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder   = { Text("Search parking / place") },
-                leadingIcon   = {
-                    Icon(
-                        painter            = painterResource(Res.drawable.search),
-                        contentDescription = "Search"
+            LazyColumn(
+                modifier            = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    OutlinedTextField(
+                        value         = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder   = { Text("Search parking / place") },
+                        leadingIcon   = {
+                            Icon(
+                                painter            = painterResource(Res.drawable.search),
+                                contentDescription = "Search"
+                            )
+                        },
+                        modifier   = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape      = MaterialTheme.shapes.medium
                     )
-                },
-                modifier   = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape      = MaterialTheme.shapes.medium
-            )
+                }
 
-            OsmMapCard(
-                uiState         = uiState,
-                onToggleExpand  = { viewModel.toggleMapExpanded() },
-                onSelectParking = { viewModel.selectParking(it) },
-            )
+                item {
+                    OsmMapCard(
+                        uiState         = uiState,
+                        expandedHeight  = expandedMapHeight,
+                        onToggleExpand  = { viewModel.toggleMapExpanded() },
+                        onSelectParking = { viewModel.selectParking(it) },
+                    )
+                }
 
-            if (!uiState.isMapExpanded) {
-                Text(
-                    text  = "Parking list based on position and preferences",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                MapContent(uiState = uiState, onRetry = { viewModel.fetchNearbyParkings(uiState.mapCenterLat, uiState.mapCenterLon) })
+                if (!uiState.isMapExpanded) {
+                    item {
+                        Text(
+                            text  = "Parking list based on position and preferences",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    when {
+                        uiState.isLoading && uiState.parkings.isEmpty() -> {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
+                        uiState.error != null -> {
+                            item {
+                                Column(
+                                    modifier            = Modifier.fillMaxWidth().padding(32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text  = "Error: ${uiState.error}",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Button(onClick = { refreshLocationAndData(true) }) { Text("Try again") }
+                                }
+                            }
+                        }
+                        else -> {
+                            items(uiState.parkings) { parking ->
+                                ParkingListItem(parking = parking)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -105,11 +160,12 @@ fun MapScreen(viewModel: MapViewModel) {
 @Composable
 private fun OsmMapCard(
     uiState: MapUiState,
+    expandedHeight: Dp,
     onToggleExpand: () -> Unit,
     onSelectParking: (Parking?) -> Unit,
 ) {
     val cardHeight by animateDpAsState(
-        targetValue = if (uiState.isMapExpanded) 520.dp else 240.dp,
+        targetValue = if (uiState.isMapExpanded) expandedHeight else 240.dp,
         label       = "map_height"
     )
 
@@ -132,14 +188,13 @@ private fun OsmMapCard(
                 modifier     = Modifier.fillMaxSize(),
                 centerLat    = stableCenterLat,
                 centerLon    = stableCenterLon,
-                userLat      = uiState.userLat, // Pass user Lat
-                userLon      = uiState.userLon, // Pass user Lon
+                userLat      = uiState.userLat,
+                userLon      = uiState.userLon,
                 zoom         = stableZoom,
                 parkings     = stableParkings,
                 onPinClicked = { parking -> onSelectParking(parking) },
             )
 
-            // Expand/collapse hint badge
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -154,7 +209,6 @@ private fun OsmMapCard(
                 )
             }
 
-            // Parking info popup (shown when a pin is tapped)
             uiState.selectedParking?.let { parking ->
                 ParkingPopup(
                     parking   = parking,
@@ -227,40 +281,7 @@ private fun LabeledInfo(label: String, value: String) {
     }
 }
 
-// ── Parking list ──────────────────────────────────────────────────────────────
-
-@Composable
-private fun MapContent(uiState: MapUiState, onRetry: () -> Unit) {
-    when {
-        // Prevent double loading spinners by only showing this when the list is actually empty
-        uiState.isLoading && uiState.parkings.isEmpty() -> {
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        }
-        uiState.error != null -> {
-            Column(
-                modifier            = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text  = "Error: ${uiState.error}",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Button(onClick = onRetry) { Text("Try again") }
-            }
-        }
-        else -> {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(uiState.parkings) { parking ->
-                    ParkingListItem(parking = parking)
-                }
-            }
-        }
-    }
-}
+// ── Parking list item ─────────────────────────────────────────────────────────
 
 @Composable
 private fun ParkingListItem(parking: Parking) {
@@ -308,8 +329,8 @@ expect fun WebMapView(
     modifier: Modifier,
     centerLat: Double,
     centerLon: Double,
-    userLat: Double?, // New
-    userLon: Double?, // New
+    userLat: Double?,
+    userLon: Double?,
     zoom: Int,
     parkings: List<Parking>,
     onPinClicked: (Parking) -> Unit,
