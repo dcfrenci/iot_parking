@@ -35,25 +35,36 @@ class SettingsViewModel(
     private val savePreferences: SavePreferencesUseCase
 ) : ViewModel() {
 
-    private val accountId get() = SessionManager.currentAccountId
+    private val accountId get() = SessionManager.currentAccountId.value
 
     private val _uiState = MutableStateFlow(SettingsUiState())
+    private var hasLoadedOnce = false
+
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
-        loadSettings()
+        // Start observing the session ID the moment the ViewModel is created
+        viewModelScope.launch {
+            SessionManager.currentAccountId.collect { currentId ->
+                // As soon as the accountId is valid (not -1), and we haven't loaded yet, fetch the data
+                if (currentId != -1 && !hasLoadedOnce) {
+                    loadSettings(accountId = currentId, isRefresh = false)
+                }
+            }
+        }
     }
 
-    fun loadSettings() {
-        if (accountId.value == -1) return
+    fun loadSettings(accountId: Int = SessionManager.currentAccountId.value, isRefresh: Boolean = false) {
+        if (accountId == -1) return
+        if (hasLoadedOnce && !isRefresh) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                val user = getUser(accountId.value).getOrNull()
-                val plates = getPlates(accountId.value).getOrNull() ?: emptyList()
-                val payment = getPaymentMethod(accountId.value).getOrNull()
-                val prefs = getPreferences(accountId.value).getOrNull()
+                val user = getUser(accountId).getOrNull()
+                val plates = getPlates(accountId).getOrNull() ?: emptyList()
+                val payment = getPaymentMethod(accountId).getOrNull()
+                val prefs = getPreferences(accountId).getOrNull()
 
                 _uiState.update {
                     it.copy(
@@ -64,6 +75,8 @@ class SettingsViewModel(
                         preferences = prefs
                     )
                 }
+
+                hasLoadedOnce = true
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
             }
@@ -73,7 +86,7 @@ class SettingsViewModel(
     fun togglePlate(plateId: Int, isActive: Boolean) {
         // Here you would implement your SetPlateActive logic if needed
         // For now, it just reloads settings to sync state
-        loadSettings()
+        loadSettings(isRefresh = true)
     }
 
     fun openAddPlateDialog() {
@@ -86,29 +99,29 @@ class SettingsViewModel(
 
     fun addNewPlate(name: String, plateText: String, imageUri: String?) {
         viewModelScope.launch {
-            addPlate(accountId.value, name, plateText, imageUri).onSuccess {
+            addPlate(accountId, name, plateText, imageUri).onSuccess {
                 closeAddPlateDialog()
-                loadSettings()
+                loadSettings(isRefresh = true)
             }
         }
     }
 
     fun removePlate(plateId: Int) {
         viewModelScope.launch {
-            deletePlate(accountId.value, plateId).onSuccess { loadSettings() }
+            deletePlate(accountId, plateId).onSuccess { loadSettings(isRefresh = true) }
         }
     }
 
     fun updatePayment(paymentMethod: PaymentMethod) {
         viewModelScope.launch {
-            updatePaymentMethod(accountId.value, paymentMethod).onSuccess { loadSettings() }
+            updatePaymentMethod(accountId, paymentMethod).onSuccess { loadSettings(isRefresh = true) }
         }
     }
 
     fun updatePrefs(distance: Double, price: Double) {
         viewModelScope.launch {
             val newPrefs = ParkingPreferences(distance, price)
-            savePreferences(accountId.value, newPrefs).onSuccess { loadSettings() }
+            savePreferences(accountId, newPrefs).onSuccess { loadSettings(isRefresh = true) }
         }
     }
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,29 +26,36 @@ import org.jetbrains.compose.resources.painterResource
 fun SettingsScreen(viewModel: SettingsViewModel) {
     val uiState by viewModel.uiState.collectAsState()
 
-    when {
-        uiState.isLoading -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        }
-        uiState.error != null -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Error: ${uiState.error}", color = MaterialTheme.colorScheme.error)
-                    Button(onClick = { viewModel.loadSettings() }) { Text("Try again") }
+    PullToRefreshBox(
+        isRefreshing = uiState.isLoading,
+        onRefresh = { viewModel.loadSettings() },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        when {
+            // Only show the central loading spinner if we are loading AND have no data yet.
+            uiState.isLoading && uiState.user == null && uiState.plates.isEmpty() -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
             }
+            uiState.error != null -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Error: ${uiState.error}", color = MaterialTheme.colorScheme.error)
+                        Button(onClick = { viewModel.loadSettings() }) { Text("Try again") }
+                    }
+                }
+            }
+            else -> SettingsContent(
+                uiState       = uiState,
+                onTogglePlate = { id, active -> viewModel.togglePlate(id, active) },
+                onSavePrefs   = { dist, price -> viewModel.updatePrefs(dist, price) },
+                onOpenAddPlate = { viewModel.openAddPlateDialog() },
+            )
         }
-        else -> SettingsContent(
-            uiState       = uiState,
-            onTogglePlate = { id, active -> viewModel.togglePlate(id, active) },
-            onSavePrefs   = { dist, price -> viewModel.updatePrefs(dist, price) },
-            onOpenAddPlate = { viewModel.openAddPlateDialog() },
-        )
     }
 
     if (uiState.isAddPlateDialogOpen) {

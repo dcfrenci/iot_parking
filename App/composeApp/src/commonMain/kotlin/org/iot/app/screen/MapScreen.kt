@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,45 +22,52 @@ import org.jetbrains.compose.resources.painterResource
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(viewModel: MapViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
-    Column(
-        modifier            = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    PullToRefreshBox(
+        isRefreshing = uiState.isLoading,
+        onRefresh = { viewModel.fetchNearbyParkings(uiState.mapCenterLat, uiState.mapCenterLon) },
+        modifier = Modifier.fillMaxSize()
     ) {
-        OutlinedTextField(
-            value         = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder   = { Text("Search parking / place") },
-            leadingIcon   = {
-                Icon(
-                    painter            = painterResource(Res.drawable.search),
-                    contentDescription = "Search"
-                )
-            },
-            modifier   = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape      = MaterialTheme.shapes.medium
-        )
-
-        OsmMapCard(
-            uiState         = uiState,
-            onToggleExpand  = { viewModel.toggleMapExpanded() },
-            onSelectParking = { viewModel.selectParking(it) },
-        )
-
-        if (!uiState.isMapExpanded) {
-            Text(
-                text  = "Parking list based on position and preferences",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
+        Column(
+            modifier            = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedTextField(
+                value         = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder   = { Text("Search parking / place") },
+                leadingIcon   = {
+                    Icon(
+                        painter            = painterResource(Res.drawable.search),
+                        contentDescription = "Search"
+                    )
+                },
+                modifier   = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape      = MaterialTheme.shapes.medium
             )
-            MapContent(uiState = uiState, onRetry = { viewModel.fetchNearbyParkings(uiState.mapCenterLat, uiState.mapCenterLon) })
+
+            OsmMapCard(
+                uiState         = uiState,
+                onToggleExpand  = { viewModel.toggleMapExpanded() },
+                onSelectParking = { viewModel.selectParking(it) },
+            )
+
+            if (!uiState.isMapExpanded) {
+                Text(
+                    text  = "Parking list based on position and preferences",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                MapContent(uiState = uiState, onRetry = { viewModel.fetchNearbyParkings(uiState.mapCenterLat, uiState.mapCenterLon) })
+            }
         }
     }
 }
@@ -194,7 +202,8 @@ private fun LabeledInfo(label: String, value: String) {
 @Composable
 private fun MapContent(uiState: MapUiState, onRetry: () -> Unit) {
     when {
-        uiState.isLoading -> {
+        // Prevent double loading spinners by only showing this when the list is actually empty
+        uiState.isLoading && uiState.parkings.isEmpty() -> {
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
