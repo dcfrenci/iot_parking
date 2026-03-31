@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import app.composeapp.generated.resources.*
 import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
@@ -24,7 +23,6 @@ import org.iot.app.domain.model.Session
 import org.iot.app.domain.model.Parking
 import org.iot.app.domain.model.ParkingRange
 import org.iot.app.domain.model.Plate
-import org.iot.app.screen.BookedParkCard
 import org.iot.app.screen.home.HomeUiState
 import org.iot.app.screen.home.HomeViewModel
 import org.iot.app.screen.home.SecurityAlerts
@@ -473,7 +471,7 @@ private fun NewBookingDialog(
                             painter = painterResource(Res.drawable.calendar),
                             contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Data inizio: $formattedDate")
+                        Text("Start date: $formattedDate")
                     }
 
                     OutlinedTextField(
