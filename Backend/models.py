@@ -11,8 +11,8 @@ class User(Base):
     hashed_password = Column(String)
     
     # Preferences
-    pref_distance = Column(Float, default=5.0)
-    pref_price = Column(Float, default=10.0)
+    pref_distance = Column(Float, default=2.5)
+    pref_price = Column(Float, default=5.0)
 
     # Relationships
     plates = relationship("Plate", back_populates="owner", cascade="all, delete")
@@ -74,5 +74,8 @@ class Booking(Base):
     date = Column(Date)
     days = Column(Integer)
     slot_code = Column(Integer)
+
+    parking = relationship("Parking") 
+    plate = relationship("Plate")
 
     owner = relationship("User", back_populates="bookings")

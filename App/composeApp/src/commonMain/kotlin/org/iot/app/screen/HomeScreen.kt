@@ -12,7 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import app.composeapp.generated.resources.*
+import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
@@ -22,6 +24,7 @@ import org.iot.app.domain.model.Session
 import org.iot.app.domain.model.Parking
 import org.iot.app.domain.model.ParkingRange
 import org.iot.app.domain.model.Plate
+import org.iot.app.screen.BookedParkCard
 import org.iot.app.screen.home.HomeUiState
 import org.iot.app.screen.home.HomeViewModel
 import org.iot.app.screen.home.SecurityAlerts
@@ -66,6 +69,7 @@ fun HomeScreen(viewModel: HomeViewModel) {
                     onToggleBooking       = { viewModel.toggleBookingExpanded(it) },
                     onOpenEditPlate       = { viewModel.openEditPlateDialog(it) },
                     onOpenNewBooking      = { viewModel.openNewBookingDialog() },
+                    deleteFutureBooking   = { viewModel.deleteFutureBooking(it) }
                 )
             }
         }
@@ -75,11 +79,12 @@ fun HomeScreen(viewModel: HomeViewModel) {
         NewBookingDialog(
             availableParkings = uiState.availableParkings,
             availablePlates   = uiState.plates,
-            onConfirm         = { name, parkingId, plate, days ->
+            onConfirm         = { name, parkingId, plate, date, days -> // <-- 'date' AGGIUNTA QUI
                 viewModel.submitNewBooking(
                     name      = name,
                     parkingId = parkingId,
                     carPlate  = plate,
+                    date      = date,
                     days      = days,
                     onSuccess = {},
                     onError   = {},
@@ -112,6 +117,7 @@ private fun HomeContent(
     onToggleBooking: (Int) -> Unit,
     onOpenEditPlate: (Int) -> Unit,
     onOpenNewBooking: () -> Unit,
+    deleteFutureBooking: (Int) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -160,6 +166,7 @@ private fun HomeContent(
                         isExpanded  = uiState.expandedBookingId == booking.bookingId,
                         onToggle    = { onToggleBooking(booking.bookingId) },
                         onEditPlate = { onOpenEditPlate(booking.bookingId) },
+                        onDelete    = { deleteFutureBooking(booking.bookingId) }
                     )
                 }
             }
@@ -311,8 +318,17 @@ private fun BookedParkCard(
     isExpanded: Boolean,
     onToggle: () -> Unit,
     onEditPlate: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val totalCost = booking.days * 24 * booking.parking.pricePerHour
+
+    val isFutureBooking = try {
+        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        val bDate = LocalDate.parse(booking.date)
+        bDate > today
+    } catch (e: Exception) {
+        false
+    }
 
     Card(
         modifier  = Modifier.fillMaxWidth(),
@@ -335,19 +351,30 @@ private fun BookedParkCard(
                     Text(booking.parking.parkingName, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                IconButton(onClick = onToggle) {
-                    Icon(
-                        painter = painterResource(
-                            if (isExpanded) Res.drawable.expand_less else Res.drawable.expand_more
-                        ),
-                        contentDescription = if (isExpanded) "Collapse" else "Expand"
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isFutureBooking) {
+                        IconButton(onClick = onDelete) {
+                            Icon(
+                                painter = painterResource(Res.drawable.delete),
+                                contentDescription = "Delete booking",
+                            )
+                        }
+                    }
+                    IconButton(onClick = onToggle) {
+                        Icon(
+                            painter = painterResource(
+                                if (isExpanded) Res.drawable.expand_less else Res.drawable.expand_more
+                            ),
+                            contentDescription = if (isExpanded) "Collapse" else "Expand"
+                        )
+                    }
                 }
             }
 
             if (isExpanded) {
                 HorizontalDivider()
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    LabelValue("Data", booking.date) // Mostriamo la data
                     LabelValue("Duration",   "${booking.days} day(s)")
                     LabelValue("Rate",       "€ ${booking.parking.pricePerHour}/h")
                     LabelValue("Total cost", "€ ${formatPrice(totalCost)}")
@@ -373,11 +400,12 @@ private fun LabelValue(label: String, value: String) {
 
 // ── New Booking Dialog ────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NewBookingDialog(
     availableParkings: List<ParkingRange>,
     availablePlates: List<Plate>,
-    onConfirm: (name: String, parkingId: Int, plate: String, days: Int) -> Unit,
+    onConfirm: (name: String, parkingId: Int, plate: String, date: String, days: Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var step            by remember { mutableStateOf(0) }
@@ -387,20 +415,42 @@ private fun NewBookingDialog(
     var selectedPlate   by remember { mutableStateOf(availablePlates.firstOrNull()?.plateText ?: "") }
     var daysText        by remember { mutableStateOf("1") }
 
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+
+    val formattedDate = remember(datePickerState.selectedDateMillis) {
+        val millis = datePickerState.selectedDateMillis
+        if (millis != null) {
+            val instant = Instant.fromEpochMilliseconds(millis)
+            instant.toLocalDateTime(TimeZone.UTC).date.toString()
+        } else {
+            Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+        }
+    }
+
     val days  = daysText.toIntOrNull()?.coerceAtLeast(1) ?: 1
     val price = selectedParking?.pricePerHour ?: 0.0
     val total = days * 24 * price
 
     val filtered = remember(parkingQuery, availableParkings) {
-        if (parkingQuery.isBlank()) {
-            // If query is empty, show only the 2 closest parkings
-            availableParkings.take(2)
+        if (parkingQuery.isBlank()) availableParkings.take(2)
+        else availableParkings.filter {
+            it.parking.parkingName.contains(parkingQuery, ignoreCase = true) ||
+                    it.parking.address.contains(parkingQuery, ignoreCase = true)
         }
-        else {
-            availableParkings.filter {
-                it.parking.parkingName.contains(parkingQuery, ignoreCase = true) ||
-                        it.parking.address.contains(parkingQuery, ignoreCase = true)
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Confirm") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
             }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 
@@ -414,17 +464,28 @@ private fun NewBookingDialog(
                         value = bookingName, onValueChange = { bookingName = it },
                         label = { Text("Booking name") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
                     )
+
+                    OutlinedButton(
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.calendar),
+                            contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Data inizio: $formattedDate")
+                    }
+
                     OutlinedTextField(
                         value = parkingQuery, onValueChange = { parkingQuery = it },
                         label = { Text("Search parking") },
                         leadingIcon = { Icon(painterResource(Res.drawable.local_parking), null) },
                         modifier = Modifier.fillMaxWidth(), singleLine = true,
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        filtered.take(4).forEach { rangeObj -> // Iterate over ParkingRange
-                            val parking = rangeObj.parking
-                            val distance = rangeObj.distance
 
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        filtered.take(4).forEach { rangeObj ->
+                            val parking = rangeObj.parking
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape    = MaterialTheme.shapes.small,
@@ -439,23 +500,17 @@ private fun NewBookingDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        // Truncate name if it's longer than 22 characters
                                         val pName = parking.parkingName
                                         val displayName = if (pName.length > 22) pName.take(19) + "..." else pName
-
                                         Text(displayName, style = MaterialTheme.typography.bodyMedium)
-                                        // Show distance
-                                        Text(
-                                            "$distance km away",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Text("${rangeObj.distance} km away", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Text("€${parking.pricePerHour}/h", style = MaterialTheme.typography.labelMedium)
                                 }
                             }
                         }
                     }
+
                     OutlinedTextField(
                         value = daysText, onValueChange = { daysText = it.filter { c -> c.isDigit() } },
                         label = { Text("Days") },
@@ -478,6 +533,7 @@ private fun NewBookingDialog(
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     ConfirmRow("Booking name", bookingName)
+                    ConfirmRow("Date",         formattedDate)
                     ConfirmRow("Parking",      selectedParking?.parkingName ?: "-")
                     ConfirmRow("Plate",        selectedPlate)
                     ConfirmRow("Duration",     "$days day(s)")
@@ -493,7 +549,8 @@ private fun NewBookingDialog(
                     if (step == 0) step = 1
                     else {
                         val pId = selectedParking?.parkingId ?: return@Button
-                        onConfirm(bookingName, pId, selectedPlate, days)
+                        // Passa 'formattedDate' al viewmodel
+                        onConfirm(bookingName, pId, selectedPlate, formattedDate, days)
                     }
                 },
                 enabled = if (step == 0)

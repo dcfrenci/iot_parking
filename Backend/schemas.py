@@ -59,3 +59,16 @@ class ParkingResponse(ParkingBase):
     
     class Config:
         orm_mode = True
+
+# --- Booking Schemas ---
+class BookingResponse(BaseModel):
+    booking_id: int
+    booking_name: str
+    parking: ParkingResponse
+    plate: PlateResponse
+    date: date
+    days: int
+    slot_code: int
+    
+    class Config:
+        orm_mode = True
