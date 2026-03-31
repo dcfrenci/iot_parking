@@ -65,6 +65,17 @@ fun MapScreen(viewModel: MapViewModel) {
         }
     }
 
+    val filteredParkings = remember(searchQuery, uiState.parkings) {
+        if (searchQuery.isBlank()) {
+            uiState.parkings
+        } else {
+            uiState.parkings.filter {
+                it.parkingName.contains(searchQuery, ignoreCase = true) ||
+                        it.address.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         refreshLocationAndData(false)
     }
@@ -104,6 +115,7 @@ fun MapScreen(viewModel: MapViewModel) {
                 item {
                     OsmMapCard(
                         uiState         = uiState,
+                        parkings        = filteredParkings,
                         expandedHeight  = expandedMapHeight,
                         onToggleExpand  = { viewModel.toggleMapExpanded() },
                         onSelectParking = { viewModel.selectParking(it) },
@@ -144,7 +156,7 @@ fun MapScreen(viewModel: MapViewModel) {
                             }
                         }
                         else -> {
-                            items(uiState.parkings) { parking ->
+                            items(filteredParkings) { parking ->
                                 ParkingListItem(parking = parking)
                             }
                         }
@@ -160,6 +172,7 @@ fun MapScreen(viewModel: MapViewModel) {
 @Composable
 private fun OsmMapCard(
     uiState: MapUiState,
+    parkings: List<Parking>,
     expandedHeight: Dp,
     onToggleExpand: () -> Unit,
     onSelectParking: (Parking?) -> Unit,
@@ -172,7 +185,7 @@ private fun OsmMapCard(
     val stableCenterLat  = remember(uiState.mapCenterLat)  { uiState.mapCenterLat }
     val stableCenterLon  = remember(uiState.mapCenterLon)  { uiState.mapCenterLon }
     val stableZoom       = remember(uiState.isMapExpanded) { if (uiState.isMapExpanded) 15 else 14 }
-    val stableParkings   = remember(uiState.parkings)      { uiState.parkings }
+    val stableParkings   = remember(parkings)              { parkings }
 
     Card(
         modifier  = Modifier

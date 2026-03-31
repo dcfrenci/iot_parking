@@ -20,6 +20,7 @@ import kotlinx.datetime.toLocalDateTime
 import org.iot.app.domain.model.Booking
 import org.iot.app.domain.model.Session
 import org.iot.app.domain.model.Parking
+import org.iot.app.domain.model.ParkingRange
 import org.iot.app.domain.model.Plate
 import org.iot.app.screen.home.HomeUiState
 import org.iot.app.screen.home.HomeViewModel
@@ -72,7 +73,7 @@ fun HomeScreen(viewModel: HomeViewModel) {
 
     if (uiState.isNewBookingDialogOpen) {
         NewBookingDialog(
-            availableParkings = emptyList(), // Provide this if needed
+            availableParkings = uiState.availableParkings,
             availablePlates   = uiState.plates,
             onConfirm         = { name, parkingId, plate, days ->
                 viewModel.submitNewBooking(
@@ -374,7 +375,7 @@ private fun LabelValue(label: String, value: String) {
 
 @Composable
 private fun NewBookingDialog(
-    availableParkings: List<Parking>,
+    availableParkings: List<ParkingRange>,
     availablePlates: List<Plate>,
     onConfirm: (name: String, parkingId: Int, plate: String, days: Int) -> Unit,
     onDismiss: () -> Unit,
@@ -391,10 +392,15 @@ private fun NewBookingDialog(
     val total = days * 24 * price
 
     val filtered = remember(parkingQuery, availableParkings) {
-        if (parkingQuery.isBlank()) availableParkings
-        else availableParkings.filter {
-            it.parkingName.contains(parkingQuery, ignoreCase = true) ||
-                    it.address.contains(parkingQuery, ignoreCase = true)
+        if (parkingQuery.isBlank()) {
+            // If query is empty, show only the 2 closest parkings
+            availableParkings.take(2)
+        }
+        else {
+            availableParkings.filter {
+                it.parking.parkingName.contains(parkingQuery, ignoreCase = true) ||
+                        it.parking.address.contains(parkingQuery, ignoreCase = true)
+            }
         }
     }
 
@@ -415,7 +421,10 @@ private fun NewBookingDialog(
                         modifier = Modifier.fillMaxWidth(), singleLine = true,
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        filtered.take(4).forEach { parking ->
+                        filtered.take(4).forEach { rangeObj -> // Iterate over ParkingRange
+                            val parking = rangeObj.parking
+                            val distance = rangeObj.distance
+
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape    = MaterialTheme.shapes.small,
@@ -426,10 +435,23 @@ private fun NewBookingDialog(
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(parking.parkingName, style = MaterialTheme.typography.bodySmall)
-                                    Text("€${parking.pricePerHour}/h", style = MaterialTheme.typography.labelSmall)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        // Truncate name if it's longer than 22 characters
+                                        val pName = parking.parkingName
+                                        val displayName = if (pName.length > 22) pName.take(19) + "..." else pName
+
+                                        Text(displayName, style = MaterialTheme.typography.bodyMedium)
+                                        // Show distance
+                                        Text(
+                                            "$distance km away",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text("€${parking.pricePerHour}/h", style = MaterialTheme.typography.labelMedium)
                                 }
                             }
                         }

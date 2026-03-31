@@ -91,6 +91,7 @@ fun RootNavigation(
             createBooking     = createBooking,
             updateBooking     = updateBooking,
             deleteBooking     = deleteBooking,
+            getNearbyParkings = getNearbyParkings
         )
     }
 

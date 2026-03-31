@@ -12,6 +12,7 @@ import org.iot.app.domain.model.Booking
 import org.iot.app.domain.model.Plate
 import org.iot.app.domain.model.Session
 import org.iot.app.domain.model.Parking
+import org.iot.app.domain.model.ParkingRange
 import org.iot.app.domain.usecase.*
 
 data class SecurityAlerts(
@@ -26,6 +27,7 @@ data class HomeUiState(
     val activeSessions: List<Session> = emptyList(),
     val bookings: List<Booking> = emptyList(),
     val plates: List<Plate> = emptyList(),
+    val availableParkings: List<ParkingRange> = emptyList(),
     val securityAlerts: SecurityAlerts = SecurityAlerts(),
     val isParkingDetailExpanded: Boolean = false,
     val expandedBookingId: Int? = null,
@@ -39,7 +41,8 @@ class HomeViewModel(
     private val getPlates: GetPlatesUseCase,
     private val createBooking: CreateBookingUseCase,
     private val updateBooking: UpdateBookingUseCase,
-    private val deleteBooking: DeleteBookingUseCase
+    private val deleteBooking: DeleteBookingUseCase,
+    private val getNearbyParkings: GetNearbyParkingsUseCase
 ) : ViewModel() {
 
     private val accountId get() = SessionManager.currentAccountId
@@ -72,12 +75,17 @@ class HomeViewModel(
                 val bookingsList = getBookings(accountId).getOrNull() ?: emptyList()
                 val platesList = getPlates(accountId).getOrNull() ?: emptyList()
 
+                // 2. Fetch parkings (using dummy coordinates since your backend range endpoint currently returns all parkings anyway)
+                val parkingsRanges = getNearbyParkings(44.6471, 10.9252, 20).getOrNull() ?: emptyList()
+                val sortedParkings = parkingsRanges.sortedBy { it.distance }
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         activeSessions = sessions,
                         bookings = bookingsList,
-                        plates = platesList
+                        plates = platesList,
+                        availableParkings = sortedParkings // Assign the sorted ranges
                     )
                 }
 
