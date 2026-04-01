@@ -21,6 +21,7 @@ def get_active_sessions(account_id: int, db: Session = Depends(get_db)):
         parking = db.query(models.Parking).filter(models.Parking.parking_id == session.parking_id).first()
         
         formatted_sessions.append({
+            "id": session.id,
             "plate": plate,
             "parking": parking,
             "entry_time": session.entry_time.isoformat() if session.entry_time else None,
