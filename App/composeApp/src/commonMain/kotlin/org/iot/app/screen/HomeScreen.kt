@@ -62,7 +62,7 @@ fun HomeScreen(viewModel: HomeViewModel) {
             else -> {
                 HomeContent(
                     uiState               = uiState,
-                    onToggleParkingDetail = { viewModel.toggleParkingDetail() },
+                    onToggleParkingDetail = { viewModel.toggleParkingDetail(it) },
                     onSecurityChange      = { viewModel.updateSecurityAlerts(it) },
                     onToggleBooking       = { viewModel.toggleBookingExpanded(it) },
                     onOpenEditPlate       = { viewModel.openEditPlateDialog(it) },
@@ -134,7 +134,7 @@ fun HomeScreen(viewModel: HomeViewModel) {
 @Composable
 private fun HomeContent(
     uiState: HomeUiState,
-    onToggleParkingDetail: () -> Unit,
+    onToggleParkingDetail: (String) -> Unit,
     onSecurityChange: (SecurityAlerts) -> Unit,
     onToggleBooking: (Int) -> Unit,
     onOpenEditPlate: (Int) -> Unit,
@@ -150,22 +150,23 @@ private fun HomeContent(
             contentPadding      = PaddingValues(bottom = 80.dp),
         ) {
             item { SectionTitle("Currently parked") }
-            item {
-                val activeSession = uiState.activeSessions.firstOrNull()
 
-                if (activeSession != null) {
-                    CurrentlyParkedCard(
-                        session          = activeSession,
-                        isExpanded       = uiState.isParkingDetailExpanded,
-                        securityAlerts   = uiState.securityAlerts,
-                        onToggleExpand   = onToggleParkingDetail,
-                        onSecurityChange = onSecurityChange,
-                    )
-                } else {
+            if (uiState.activeSessions.isEmpty()) {
+                item {
                     Text(
                         text  = "No active parking session",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(uiState.activeSessions) { session ->
+                    CurrentlyParkedCard(
+                        session          = session,
+                        isExpanded       = uiState.expandedSessionPlate == session.plate.plateText,
+                        securityAlerts   = uiState.securityAlerts,
+                        onToggleExpand   = { onToggleParkingDetail(session.plate.plateText) },
+                        onSecurityChange = onSecurityChange,
                     )
                 }
             }

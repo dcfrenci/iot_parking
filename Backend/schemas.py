@@ -27,6 +27,11 @@ class UserResponse(BaseModel):
     class Config:
         orm_mode = True
 
+class SessionEntryCreate(BaseModel):
+    account_id: int
+    parking_id: int
+    plate_number: str
+
 # --- Preferences Schemas ---
 class DistancePreferenceDto(BaseModel):
     distance_value: float

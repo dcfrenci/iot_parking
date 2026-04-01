@@ -10,7 +10,7 @@ router = APIRouter()
 @router.post("/login", response_model=schemas.UserResponse)
 def login(credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == credentials.email).first()
-    # In a real app, verify the hashed password here
+    # In a real app, verify the hashed password here TODO
     if not user or user.hashed_password != credentials.password + "notreallyhashed":
         raise HTTPException(status_code=422, detail="Invalid credentials")
     return user

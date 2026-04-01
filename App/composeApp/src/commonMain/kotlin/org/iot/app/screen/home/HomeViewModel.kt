@@ -29,7 +29,7 @@ data class HomeUiState(
     val plates: List<Plate> = emptyList(),
     val availableParkings: List<ParkingRange> = emptyList(),
     val securityAlerts: SecurityAlerts = SecurityAlerts(),
-    val isParkingDetailExpanded: Boolean = false,
+    val expandedSessionPlate: String? = null,
     val expandedBookingId: Int? = null,
     val isNewBookingDialogOpen: Boolean = false,
     val editingBookingId: Int? = null
@@ -96,8 +96,10 @@ class HomeViewModel(
         }
     }
 
-    fun toggleParkingDetail() {
-        _uiState.update { it.copy(isParkingDetailExpanded = !it.isParkingDetailExpanded) }
+    fun toggleParkingDetail(plateText: String) {
+        _uiState.update {
+            it.copy(expandedSessionPlate = if (it.expandedSessionPlate == plateText) null else plateText)
+        }
     }
 
     fun updateSecurityAlerts(alerts: SecurityAlerts) {
