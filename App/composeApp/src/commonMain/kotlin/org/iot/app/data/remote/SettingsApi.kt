@@ -39,6 +39,11 @@ class SettingsApi(private val client: HttpClient) {
             parameter("account_id", accountId)
         }.body()
 
+    suspend fun addPaymentMethod(dto: UpdatePaymentDto): PaymentMethodDto =
+        client.post("user/payment") {
+            setBody(dto)
+        }.body()
+
     suspend fun updatePaymentMethod(dto: UpdatePaymentDto): PaymentMethodDto =
         client.patch("user/payment") {
             setBody(dto)

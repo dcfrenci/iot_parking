@@ -11,6 +11,7 @@ interface SettingsRepository {
     suspend fun addPlate(accountId: Int, name: String, plateText: String, imageUri: String?): Result<Plate>
     suspend fun deletePlate(accountId: Int, plateId: Int): Result<Unit>
     suspend fun getPaymentMethod(accountId: Int): Result<PaymentMethod>
+    suspend fun addPaymentMethod(accountId: Int, payment: PaymentMethod): Result<PaymentMethod>
     suspend fun updatePaymentMethod(accountId: Int, payment: PaymentMethod): Result<PaymentMethod>
     suspend fun getPreferences(accountId: Int): Result<ParkingPreferences>
     suspend fun updatePreferences(accountId: Int, prefs: ParkingPreferences): Result<ParkingPreferences>

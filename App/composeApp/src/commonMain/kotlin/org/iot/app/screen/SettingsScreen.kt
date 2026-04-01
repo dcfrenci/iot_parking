@@ -1,6 +1,7 @@
 package org.iot.app.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +27,11 @@ import org.jetbrains.compose.resources.painterResource
 fun SettingsScreen(viewModel: SettingsViewModel) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // State to hold the ID of the plate we are currently trying to delete
+    var plateToDelete by remember { mutableStateOf<Int?>(null) }
+    // State to manage Payment Method Dialog visibility
+    var isPaymentDialogOpen by remember { mutableStateOf(false) }
+
     PullToRefreshBox(
         isRefreshing = uiState.isLoading,
         onRefresh = { viewModel.loadSettings() },
@@ -50,14 +56,54 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 }
             }
             else -> SettingsContent(
-                uiState       = uiState,
-                onTogglePlate = { id, active -> viewModel.togglePlate(id, active) },
-                onSavePrefs   = { dist, price -> viewModel.updatePrefs(dist, price) },
-                onOpenAddPlate = { viewModel.openAddPlateDialog() },
+                uiState             = uiState,
+                onTogglePlate       = { id, active -> viewModel.togglePlate(id, active) },
+                onDeletePlate       = { id -> plateToDelete = id },
+                onSavePrefs         = { dist, price -> viewModel.updatePrefs(dist, price) },
+                onOpenAddPlate      = { viewModel.openAddPlateDialog() },
+                onOpenPaymentDialog = { isPaymentDialogOpen = true }
             )
         }
     }
 
+    // Confirmation Dialog for deleting a plate
+    if (plateToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { plateToDelete = null },
+            title = { Text("Delete plate") },
+            text = { Text("Are you sure you want to remove this plate? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        plateToDelete?.let { viewModel.removePlate(it) }
+                        plateToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { plateToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Add/Edit Payment Method Dialog
+    if (isPaymentDialogOpen) {
+        PaymentMethodDialog(
+            initialPayment = uiState.paymentMethod,
+            onConfirm = { payment ->
+                viewModel.updatePayment(payment)
+                isPaymentDialogOpen = false
+            },
+            onDismiss = { isPaymentDialogOpen = false }
+        )
+    }
+
+    // Add Plate Dialog
     if (uiState.isAddPlateDialogOpen) {
         AddPlateDialog(
             onConfirm = { name, text, uri -> viewModel.addNewPlate(name, text, uri) },
@@ -72,8 +118,10 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 private fun SettingsContent(
     uiState: SettingsUiState,
     onTogglePlate: (Int, Boolean) -> Unit,
+    onDeletePlate: (Int) -> Unit,
     onSavePrefs: (Double, Double) -> Unit,
     onOpenAddPlate: () -> Unit,
+    onOpenPaymentDialog: () -> Unit,
 ) {
     LazyColumn(
         modifier            = Modifier
@@ -90,7 +138,8 @@ private fun SettingsContent(
                 uiState.plates.forEach { plate ->
                     RegisteredPlateCard(
                         plate    = plate,
-                        onToggle = { isActive -> onTogglePlate(plate.plateId, isActive) }
+                        onToggle = { isActive -> onTogglePlate(plate.plateId, isActive) },
+                        onDelete = { onDeletePlate(plate.plateId) }
                     )
                 }
                 OutlinedButton(
@@ -109,7 +158,27 @@ private fun SettingsContent(
         }
 
         item { SectionHeader("Payment method") }
-        item { uiState.paymentMethod?.let { PaymentMethodCard(payment = it) } }
+        item {
+            if (uiState.paymentMethod != null) {
+                PaymentMethodCard(
+                    payment = uiState.paymentMethod,
+                    onChange = onOpenPaymentDialog
+                )
+            } else {
+                OutlinedButton(
+                    onClick  = onOpenPaymentDialog,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        painter            = painterResource(Res.drawable.add),
+                        contentDescription = null,
+                        modifier           = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add payment method")
+                }
+            }
+        }
 
         item { SectionHeader("Parking preferences") }
         item {
@@ -177,6 +246,7 @@ private fun AccountCard(user: User) {
 private fun RegisteredPlateCard(
     plate: Plate,
     onToggle: (Boolean) -> Unit,
+    onDelete: () -> Unit,
 ) {
     var checked by remember(plate.plateId) { mutableStateOf(plate.isActive) }
 
@@ -195,22 +265,39 @@ private fun RegisteredPlateCard(
                 verticalAlignment     = Alignment.CenterVertically
             ) {
                 Text(text = plate.name, style = MaterialTheme.typography.bodyLarge)
+
                 Row(
                     verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.size(10.dp).clip(CircleShape).background(
-                            if (checked) MaterialTheme.colorScheme.tertiary
+                    Row(
+                        verticalAlignment     = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.size(10.dp).clip(CircleShape).background(
+                                if (checked) MaterialTheme.colorScheme.tertiary
+                                else         MaterialTheme.colorScheme.error
+                            )
+                        )
+                        Text(
+                            text  = if (checked) "Active" else "Inactive",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (checked) MaterialTheme.colorScheme.tertiary
                             else         MaterialTheme.colorScheme.error
                         )
-                    )
-                    Text(
-                        text  = if (checked) "Active" else "Inactive",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (checked) MaterialTheme.colorScheme.tertiary
-                        else         MaterialTheme.colorScheme.error
-                    )
+                    }
+
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.delete),
+                            contentDescription = "Delete plate",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
 
@@ -284,7 +371,7 @@ private fun RegisteredPlateCard(
 // ── Payment Method Card ───────────────────────────────────────────────────────
 
 @Composable
-private fun PaymentMethodCard(payment: PaymentMethod) {
+private fun PaymentMethodCard(payment: PaymentMethod, onChange: () -> Unit) {
     Card(
         modifier  = Modifier.fillMaxWidth(),
         colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -311,7 +398,7 @@ private fun PaymentMethodCard(payment: PaymentMethod) {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            TextButton(onClick = { /* TODO: change payment */ }) { Text("Change") }
+            TextButton(onClick = onChange) { Text("Change") }
         }
     }
 }
@@ -376,6 +463,66 @@ private fun ParkingPreferencesCard(
         }
     }
 }
+
+// ── Add/Edit Payment Method Dialog ────────────────────────────────────────────
+
+@Composable
+private fun PaymentMethodDialog(
+    initialPayment: PaymentMethod?,
+    onConfirm: (PaymentMethod) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var cardNumber by remember { mutableStateOf(initialPayment?.cardNumber ?: "") }
+    var circuit by remember { mutableStateOf(initialPayment?.circuit ?: "Visa") }
+    val circuits = listOf("Visa", "Mastercard")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialPayment == null) "Add payment method" else "Edit payment method") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                Text(text = "Circuit", style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    circuits.forEach { option ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { circuit = option }
+                        ) {
+                            RadioButton(
+                                selected = circuit == option,
+                                onClick = { circuit = option }
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(text = option, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = cardNumber,
+                    onValueChange = { newValue ->
+                        // Only allow digits
+                        cardNumber = newValue.filter { it.isDigit() }
+                    },
+                    label = { Text("Card Number") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(PaymentMethod(circuit, cardNumber)) },
+                enabled = cardNumber.isNotBlank() && cardNumber.length >= 8 // Basic validation
+            ) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
 
 // ── Add Plate Dialog ──────────────────────────────────────────────────────────
 

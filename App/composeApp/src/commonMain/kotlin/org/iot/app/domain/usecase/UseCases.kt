@@ -80,6 +80,11 @@ class GetPaymentMethodUseCase(private val repository: SettingsRepository) {
         repository.getPaymentMethod(accountId)
 }
 
+class AddPaymentMethodUseCase(private val repository: SettingsRepository) {
+    suspend operator fun invoke(accountId: Int, payment: PaymentMethod): Result<PaymentMethod> =
+        repository.addPaymentMethod(accountId, payment)
+}
+
 class UpdatePaymentMethodUseCase(private val repository: SettingsRepository) {
     suspend operator fun invoke(accountId: Int, payment: PaymentMethod): Result<PaymentMethod> =
         repository.updatePaymentMethod(accountId, payment)

@@ -30,6 +30,7 @@ class SettingsViewModel(
     private val addPlate: AddPlateUseCase,
     private val deletePlate: DeletePlateUseCase,
     private val getPaymentMethod: GetPaymentMethodUseCase,
+    private val addPaymentMethod: AddPaymentMethodUseCase,
     private val updatePaymentMethod: UpdatePaymentMethodUseCase,
     private val getPreferences: GetPreferencesUseCase,
     private val savePreferences: SavePreferencesUseCase
@@ -114,7 +115,11 @@ class SettingsViewModel(
 
     fun updatePayment(paymentMethod: PaymentMethod) {
         viewModelScope.launch {
-            updatePaymentMethod(accountId, paymentMethod).onSuccess { loadSettings(isRefresh = true) }
+            if (_uiState.value.paymentMethod == null) {
+                addPaymentMethod(accountId, paymentMethod).onSuccess { loadSettings(isRefresh = true) }
+            } else {
+                updatePaymentMethod(accountId, paymentMethod).onSuccess { loadSettings(isRefresh = true) }
+            }
         }
     }
 

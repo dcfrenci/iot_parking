@@ -42,6 +42,7 @@ fun App() {
     val addPlate            = remember { AddPlateUseCase(settingsRepository) }
     val deletePlate         = remember { DeletePlateUseCase(settingsRepository) }
     val getPaymentMethod    = remember { GetPaymentMethodUseCase(settingsRepository) }
+    val addPaymentMethod    = remember { AddPaymentMethodUseCase(settingsRepository) }
     val updatePaymentMethod = remember { UpdatePaymentMethodUseCase(settingsRepository) }
     val getPreferences      = remember { GetPreferencesUseCase(settingsRepository) }
     val savePreferences     = remember { SavePreferencesUseCase(settingsRepository) }
@@ -61,6 +62,7 @@ fun App() {
             addPlate            = addPlate,
             deletePlate         = deletePlate,
             getPaymentMethod    = getPaymentMethod,
+            addPaymentMethod    = addPaymentMethod,
             updatePaymentMethod = updatePaymentMethod,
             getPreferences      = getPreferences,
             savePreferences     = savePreferences,

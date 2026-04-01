@@ -32,6 +32,9 @@ class SettingsRepositoryImpl(
     override suspend fun getPaymentMethod(accountId: Int): Result<PaymentMethod> =
         runCatching { api.getPaymentMethod(accountId).toDomain() }
 
+    override suspend fun addPaymentMethod(accountId: Int, payment: PaymentMethod): Result<PaymentMethod> =
+        runCatching { api.addPaymentMethod(UpdatePaymentDto(accountId, payment.toDto())).toDomain() }
+
     override suspend fun updatePaymentMethod(accountId: Int, payment: PaymentMethod): Result<PaymentMethod> =
         runCatching { api.updatePaymentMethod(UpdatePaymentDto(accountId, payment.toDto())).toDomain() }
 
