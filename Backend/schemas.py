@@ -27,19 +27,46 @@ class UserResponse(BaseModel):
     class Config:
         orm_mode = True
 
+# --- Preferences Schemas ---
+class DistancePreferenceDto(BaseModel):
+    distance_value: float
+
+class UpdateDistancePreferenceDto(BaseModel):
+    account_id: int
+    distance_value: float
+
+class PricePreferenceDto(BaseModel):
+    price_value: float
+
+class UpdatePricePreferenceDto(BaseModel):
+    account_id: int
+    price_value: float
+
+# --- Payment Schemas ---
+class PaymentMethodDto(BaseModel):
+    circuit: str
+    card_number: str
+
+    class Config:
+        orm_mode = True
+
+class UpdatePaymentDto(BaseModel):
+    account_id: int
+    payment: PaymentMethodDto
+
 # --- Plate Schemas ---
 class PlateCreate(BaseModel):
     account_id: int
     plate_text: str
     plate_name: str
-    image_uri: str
+    image_uri: Optional[str] = ""
 
 class PlateResponse(BaseModel):
     plate_id: int
     plate_text: str
     plate_name: str
     is_active: bool
-    image_uri: str
+    image_uri: Optional[str] = None
     
     class Config:
         orm_mode = True

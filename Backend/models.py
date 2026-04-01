@@ -15,9 +15,9 @@ class User(Base):
     pref_price = Column(Float, default=5.0)
 
     # Relationships
-    plates = relationship("Plate", back_populates="owner", cascade="all, delete")
-    payment = relationship("Payment", back_populates="owner", uselist=False, cascade="all, delete")
-    bookings = relationship("Booking", back_populates="owner", cascade="all, delete")
+    plates = relationship("Plate", back_populates="owner", cascade="all, delete-orphan")
+    payment = relationship("Payment", back_populates="owner", uselist=False, cascade="all, delete-orphan")
+    bookings = relationship("Booking", back_populates="owner", cascade="all, delete-orphan")
 
 class Plate(Base):
     __tablename__ = "plates"
@@ -27,7 +27,7 @@ class Plate(Base):
     plate_text = Column(String, index=True)
     plate_name = Column(String)
     is_active = Column(Boolean, default=True)
-    image_uri = Column(String)
+    image_uri = Column(String, nullable=True)
 
     owner = relationship("User", back_populates="plates")
 

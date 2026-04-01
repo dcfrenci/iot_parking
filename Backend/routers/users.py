@@ -76,17 +76,61 @@ def get_payment(account_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Payment method not found")
     return payment
 
-@router.patch("/user/payment")
-def update_payment(account_id: int, payment_data: dict, db: Session = Depends(get_db)):
-    payment = db.query(models.Payment).filter(models.Payment.account_id == account_id).first()
+@router.post("/user/payment", response_model=schemas.PaymentMethodDto, status_code=status.HTTP_201_CREATED)
+def create_payment_method(
+    payment_data: schemas.UpdatePaymentDto, 
+    db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(models.User.account_id == payment_data.account_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="User not found"
+        )
+        
+    existing_payment = db.query(models.Payment).filter(
+        models.Payment.account_id == payment_data.account_id
+    ).first()
+    
+    if existing_payment:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Payment method already exists. Use PATCH to update."
+        )
+        
+    new_payment = models.Payment(
+        account_id=payment_data.account_id,
+        circuit=payment_data.payment.circuit,
+        card_number=payment_data.payment.card_number
+    )
+    
+    db.add(new_payment)
+    db.commit()
+    db.refresh(new_payment)
+    
+    return new_payment
+
+@router.patch("/user/payment", response_model=schemas.PaymentMethodDto)
+def update_payment(
+    payment_data: schemas.UpdatePaymentDto, 
+    db: Session = Depends(get_db)
+):
+    payment = db.query(models.Payment).filter(
+        models.Payment.account_id == payment_data.account_id
+    ).first()
+    
     if not payment:
-        payment = models.Payment(account_id=account_id, **payment_data["payment"])
-        db.add(payment)
-    else:
-        for key, value in payment_data["payment"].items():
-            setattr(payment, key, value)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Payment method not found. Use POST to create one."
+        )
+        
+    payment.circuit = payment_data.payment.circuit
+    payment.card_number = payment_data.payment.card_number
+    
     db.commit()
     db.refresh(payment)
+    
     return payment
 
 # --- Preferences ---
