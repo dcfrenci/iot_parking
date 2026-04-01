@@ -130,7 +130,7 @@ class HomeViewModel(
         name: String,
         parkingId: Int,
         carPlate: String,
-        date: String, // <-- Aggiunto il parametro data
+        date: String,
         days: Int,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
@@ -144,14 +144,12 @@ class HomeViewModel(
                 return@launch
             }
 
-            // Dummy Parking object
             val dummyParking = Parking(parkingId, "", "", 0.0, 0.0, 0, 0, 0.0)
-            // Passiamo la data selezionata al posto della stringa vuota ""
             val newBooking = Booking(0, name, dummyParking, selectedPlate, date, days, 0)
 
             createBooking(accountId.value, newBooking).onSuccess {
                 closeNewBookingDialog()
-                loadData()
+                loadData(isRefresh = true) // <-- FIX: Force a refresh
                 onSuccess()
             }.onFailure { err ->
                 _uiState.update { it.copy(isLoading = false, error = err.message) }
@@ -168,7 +166,7 @@ class HomeViewModel(
             val updatedBooking = booking.copy(plate = plate)
             updateBooking(accountId.value, updatedBooking).onSuccess {
                 closeEditPlateDialog()
-                loadData()
+                loadData(isRefresh = true) // <-- FIX: Force a refresh
             }
         }
     }
@@ -177,7 +175,7 @@ class HomeViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             deleteBooking(accountId.value, bookingId).onSuccess {
-                loadData() // Ricarica la lista dopo aver eliminato
+                loadData(isRefresh = true) // <-- FIX: Force a refresh
             }.onFailure { err ->
                 _uiState.update { it.copy(isLoading = false, error = err.message) }
             }

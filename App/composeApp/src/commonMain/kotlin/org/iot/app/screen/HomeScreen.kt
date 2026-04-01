@@ -35,14 +35,14 @@ import org.jetbrains.compose.resources.painterResource
 fun HomeScreen(viewModel: HomeViewModel) {
     val uiState by viewModel.uiState.collectAsState()
 
+    var bookingToDelete by remember { mutableStateOf<Int?>(null) }
+
     PullToRefreshBox(
         isRefreshing = uiState.isLoading,
         onRefresh = { viewModel.loadData(isRefresh = true) },
         modifier = Modifier.fillMaxSize()
     ) {
         when {
-            // Only show the central loading spinner if we are loading AND have no data yet.
-            // If we are just refreshing existing data, PullToRefreshBox handles the UI spinner.
             uiState.isLoading && uiState.activeSessions.isEmpty() && uiState.bookings.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -67,7 +67,7 @@ fun HomeScreen(viewModel: HomeViewModel) {
                     onToggleBooking       = { viewModel.toggleBookingExpanded(it) },
                     onOpenEditPlate       = { viewModel.openEditPlateDialog(it) },
                     onOpenNewBooking      = { viewModel.openNewBookingDialog() },
-                    deleteFutureBooking   = { viewModel.deleteFutureBooking(it) }
+                    deleteFutureBooking   = { bookingToDelete = it }
                 )
             }
         }
@@ -103,6 +103,30 @@ fun HomeScreen(viewModel: HomeViewModel) {
             )
         }
     }
+
+    if (bookingToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { bookingToDelete = null },
+            title = { Text("Delete booking") },
+            text = { Text("Are you sure you want to delete this booking? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteFutureBooking(bookingToDelete!!)
+                        bookingToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { bookingToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 // ── Content ───────────────────────────────────────────────────────────────────
@@ -127,7 +151,6 @@ private fun HomeContent(
         ) {
             item { SectionTitle("Currently parked") }
             item {
-                // Using the first active session as the main "Current Parking"
                 val activeSession = uiState.activeSessions.firstOrNull()
 
                 if (activeSession != null) {
@@ -355,6 +378,7 @@ private fun BookedParkCard(
                             Icon(
                                 painter = painterResource(Res.drawable.delete),
                                 contentDescription = "Delete booking",
+                                tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -652,6 +676,6 @@ private fun formatStartedAt(startedAt: String): String {
 private fun formatPrice(value: Double): String {
     val rounded  = kotlin.math.round(value * 100) / 100.0
     val intPart  = rounded.toLong()
-    val fracPart = kotlin.math.round((rounded - intPart) * 100).toString().padStart(2, '0')
+    val fracPart = kotlin.math.round((rounded - intPart) * 100).toLong().toString().padStart(2, '0')
     return "$intPart.$fracPart"
 }
