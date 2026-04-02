@@ -105,10 +105,10 @@ def cmd_create_cars():
     if not account_id: return
 
     cars = [
-        {"account_id": account_id, "plate_text": "AA111AA", "plate_name": "Admin Alpha"},
-        {"account_id": account_id, "plate_text": "BB222BB", "plate_name": "Admin Bravo"},
-        {"account_id": account_id, "plate_text": "CC333CC", "plate_name": "Admin Charlie"},
-        {"account_id": account_id, "plate_text": "DD444DD", "plate_name": "Admin Delta"}
+        {"account_id": account_id, "plate_text": "AA111AA", "plate_name": "Mini Cooper R53"},
+        {"account_id": account_id, "plate_text": "BB222BB", "plate_name": "Volkswagen Passat"},
+        {"account_id": account_id, "plate_text": "CC333CC", "plate_name": "Land Rover Discovery II"},
+        {"account_id": account_id, "plate_text": "DD444DD", "plate_name": "Toyota Yaris"}
     ]
     
     for car in cars:
