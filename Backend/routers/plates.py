@@ -36,3 +36,15 @@ def delete_plate(account_id: int, plate_id: int, db: Session = Depends(get_db)):
     db.delete(plate)
     db.commit()
     return {"detail": "Plate deleted successfully"}
+
+
+@router.get("/plate")
+def get_plate(plate_text: str, db: Session = Depends(get_db)):
+    plate = db.query(models.Plate).filter(models.Plate.plate_text == plate_text).first()
+
+    if not plate:
+        raise HTTPException(status_code=404, detail={"status": 404,"message": "Plate not registered", "field": "plate_text"})
+    if not plate.is_active:
+        raise HTTPException(status_code=403, detail={"status": 404,"message": "Plate is not active", "field": "plate_text"})
+    
+    return plate

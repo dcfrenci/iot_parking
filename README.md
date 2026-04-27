@@ -33,7 +33,7 @@ flowchart TD
     Z -- Full --> Z
     A[Camera read the plate] --> B[Check if match formats]
     B -- No --> A
-    B --> Yes --> C[GET /plate to check if in database account_id]
+    B -- Yes --> C[GET /plate to check if in database account_id]
     C -- No --> A
     C -- Yes --> D[GET to check if active and payment]
     D -- No --> A

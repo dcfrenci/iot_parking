@@ -8,7 +8,6 @@ router = APIRouter()
 
 @router.get("/paying")
 def get_active_sessions(account_id: int, db: Session = Depends(get_db)):
-    # Join Parked with Plate to filter by account_id
     active_sessions = db.query(models.Parked).join(models.Plate).filter(
         models.Plate.account_id == account_id,
         models.Parked.is_paid == False
