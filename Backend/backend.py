@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import users, plates, parkings, bookings, sessions
+from routers import users, plates, parkings, bookings, sessions, gate
 from database import engine
 import models
 
@@ -13,3 +13,4 @@ app.include_router(plates.router, prefix="/v1", tags=["Plates"])
 app.include_router(parkings.router, prefix="/v1", tags=["Parkings"])
 app.include_router(bookings.router, prefix="/v1", tags=["Bookings"])
 app.include_router(sessions.router, prefix="/v1", tags=["Active Sessions"])
+app.include_router(gate.router, prefix="/v1", tags=["Gate"])

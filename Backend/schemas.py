@@ -104,3 +104,10 @@ class BookingResponse(BaseModel):
     
     class Config:
         orm_mode = True
+
+# --- Gate Schemas ---
+class GateEntryRequest(BaseModel):
+    plate_text: str
+
+class GateExitRequest(BaseModel):
+    plate_text: str
