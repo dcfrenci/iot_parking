@@ -2,6 +2,8 @@ from lpr_model import *
 from enum import Enum
 import requests
 
+import re
+
 CAMERA_INDEX = 0    # 0 = integrata, 1 = USB
 OCR_EVERY_N  = 10    # esegui OCR solo ogni N frame (alleggerisce il carico)
 
@@ -9,6 +11,11 @@ N_STABLE_FRAMES = 8
 STABLE_PIXEL_THRESH = 8
 #MIN_SHARPNESS
 COOLDOWN_FRAMES = 30
+
+BASE_URL = "http://127.0.0.1:8000/v1"
+PARKING_ID = 1
+
+session = requests.Session()
 
 class State(Enum):
     EMPTY = "EMPTY"
@@ -92,22 +99,47 @@ def run_webcam():
                 state = State.ANALYSIS
             
             elif state == State.ANALYSIS:
-                plate = process_image(frame)
+                
+                plate_text = process_image(frame)
 
-                if plate is not None:
-                    response = requests.post(
-                        "http://localhost:8000/v1/gate/entry",
-                        json={"plate_text": plate}
-                    )
-                    if response.status_code == 200:
-                        print(f"[gate] Sbarra aperta per targa: {plate}")
-                    elif response.status_code == 404:
-                        print(f"[gate] Targa non registrata: {plate}")
-                    elif response.status_code == 403:
-                        print(f"[gate] Accesso negato: {plate}")
-                    
+                # Check format (AA 000 AA)
+                if not re.findall("[A-Z]{2}[0-9]{3}[A-Z]{2}", plate_text):
+                    print(f"\t--> Incorrect format (AA000AA): {plate_text}")
+                    break
+
+                # Check database for the plate
+                plate = session.get(f"{BASE_URL}/plate", params={"plate_text": plate_text})
+                
+                if plate.status_code != 200:
+                    print(f"\t--> The plate {plate_text} was not found")
+                    break
+                
+                plate = plate.json()
+
+                # Check if active
+                if not plate["active"]:
+                    print(f"\t--> The plate {plate_text} is not active")
+                    break
+
+                # Check for payment
+                payment = session.get(f"{BASE_URL}/user/payment", params={"account_id": plate["account_id"]})
+
+                if payment.status_code != 200:
+                    print(f"\t--> The payment method linked to the plate {plate_text} was not found")
+                    break
+
+                # Create new session
+                payload = {
+                    "account_id": plate["account_id"],
+                    "parking_id": PARKING_ID,
+                    "plate_number": plate_text
+                }
+                
+                res = session.post(f"{BASE_URL}/paying", json=payload)
+                if res.status_code in [200, 201]:
+                    print(f"Success! Session started for plate {plate_text}")
                 else:
-                    print("[gate] Nessuna targa rilevata")
+                    print(f"Failed to create session: {res.text}")
                 
                 print("ANALYSIS -> EMPTY")
                 state = State.EMPTY
