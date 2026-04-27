@@ -1,5 +1,6 @@
-from lpr_model import*
+from lpr_model import *
 from enum import Enum
+import requests
 
 CAMERA_INDEX = 0    # 0 = integrata, 1 = USB
 OCR_EVERY_N  = 10    # esegui OCR solo ogni N frame (alleggerisce il carico)
@@ -91,7 +92,23 @@ def run_webcam():
                 state = State.ANALYSIS
             
             elif state == State.ANALYSIS:
-                process_image(frame)
+                plate = process_image(frame)
+
+                if plate is not None:
+                    response = requests.post(
+                        "http://localhost:8000/v1/gate/entry",
+                        json={"plate_text": plate}
+                    )
+                    if response.status_code == 200:
+                        print(f"[gate] Sbarra aperta per targa: {plate}")
+                    elif response.status_code == 404:
+                        print(f"[gate] Targa non registrata: {plate}")
+                    elif response.status_code == 403:
+                        print(f"[gate] Accesso negato: {plate}")
+                    
+                else:
+                    print("[gate] Nessuna targa rilevata")
+                
                 print("ANALYSIS -> EMPTY")
                 state = State.EMPTY
                 cooldown = COOLDOWN_FRAMES

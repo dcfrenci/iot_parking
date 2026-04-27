@@ -63,7 +63,7 @@ def gate_entry(data: schemas.GateEntryRequest, db: Session = Depends(get_db)):
     mqttc.connect(MQTT_BROKER, MQTT_PORT)
     mqttc.loop_start()
 
-    msg_info = mqttc.publish("parking/gate/entry", "open", qos=1)
+    msg_info = mqttc.publish("parking/gate/entry", "close", qos=1)
     msg_info.wait_for_publish(timeout=1)
 
     mqttc.loop_stop()

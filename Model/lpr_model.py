@@ -174,6 +174,8 @@ def process_image(image_path: str):
 
         print(f"[detect] Found {len(result.boxes)} plate(s).")
 
+        detected_plate = None
+
         for idx, box in enumerate(result.boxes):
             print(f"\n── Plate {idx + 1} ──────────────────────────────")
 
@@ -221,6 +223,8 @@ def process_image(image_path: str):
             label = best_paddle if best_paddle else easy_text_otsu
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            
+            detected_plate = label
 
         # ── Save annotated frame ──────────────────────────────────────────────
         annotated_path = os.path.join(DEBUG_DIR, "annotated_result.jpg")
@@ -234,6 +238,8 @@ def process_image(image_path: str):
         plt.axis('off')
         plt.tight_layout()
         plt.show()
+
+        return detected_plate
 
 
 # ─────────────────────────────────────────────────────────────────────────────
