@@ -27,6 +27,7 @@ RESIZE_WIDTH = 800
 PAD          = 5
 DEBUG_DIR    = 'Debug'
 CONF_THRESH  = 0.6
+PLATE_PATTERN = re.compile(r"[A-Z]{2}[0-9]{3}[A-Z]{2}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -157,6 +158,86 @@ def run_paddleocr(image: np.ndarray) -> tuple:
 # Main pipeline
 # ─────────────────────────────────────────────────────────────────────────────
 def process_image(image_path: str):
+    print(f"\n[detect] Running YOLO on: {image_path}")
+    detections = yolo_model.predict(source=image_path)
+
+    for result in detections:
+        img = result.orig_img
+
+        print(result.boxes.conf)
+
+        if len(result.boxes.conf) == 0 or result.boxes.conf[0] < CONF_THRESH:
+            continue
+
+        if result.boxes is None or len(result.boxes) == 0:
+            print("[detect] No plates found.")
+            continue
+
+        print(f"[detect] Found {len(result.boxes)} plate(s).")
+
+        detected_plate = None
+
+        for idx, box in enumerate(result.boxes):
+            print(f"\n── Plate {idx + 1} ──────────────────────────────")
+
+            # ── 1. Crop ──────────────────────────────────────────────────────
+            x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
+            h, w           = img.shape[:2]
+
+            y1_p = max(0, y1 - PAD);  y2_p = min(h, y2 + PAD)
+            x1_p = max(0, x1 - PAD);  x2_p = min(w, x2 + PAD)
+
+            crop = img[y1_p:y2_p, x1_p:x2_p]
+
+            if crop.size == 0:
+                print("  [warn] Empty crop, skipping.")
+                continue
+
+            # ── 2. Pre-process ───────────────────────────────────────────────
+            resized, gray, thresh_otsu, thresh_adapt = preprocess(crop)
+
+            # ── 4. OCR — Otsu ────────────────────────────────────────────────
+            print("  [ocr] Otsu threshold:")
+            paddle_text_otsu, conf_otsu = run_paddleocr(thresh_otsu)
+
+            # ── 5. OCR — Adaptive ────────────────────────────────────────────
+            print("  [ocr] Adaptive threshold:")
+            paddle_text_adapt, conf_adapt = run_paddleocr(thresh_adapt)
+
+            # ── 6. Pick best Paddle result ────────────────────────────────────
+            
+            if not PLATE_PATTERN.fullmatch(paddle_text_otsu) and not PLATE_PATTERN.fullmatch(paddle_text_adapt):
+                print("  [warn] Wrong OCR match, skipping.")
+                continue
+            elif not PLATE_PATTERN.fullmatch(paddle_text_otsu):
+                best_paddle, best_conf = paddle_text_adapt, conf_adapt
+            elif not PLATE_PATTERN.fullmatch(paddle_text_adapt):
+                best_paddle, best_conf = paddle_text_otsu,  conf_otsu
+            else:
+                if conf_otsu >= conf_adapt:
+                    best_paddle, best_conf = paddle_text_otsu,  conf_otsu
+                else:
+                    best_paddle, best_conf = paddle_text_adapt, conf_adapt
+            
+            print(f"\n  ★ Best PaddleOCR : {best_paddle}  [conf: {best_conf:.2f}]")
+
+            # ── 7. Annotate original frame ────────────────────────────────────
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(img, best_paddle, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            
+            detected_plate = best_paddle
+
+        # ── Optional matplotlib display ───────────────────────────────────────
+        plt.figure(figsize=(10, 6))
+        plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        plt.title("Detection result")
+        plt.axis('off')
+        plt.tight_layout()
+        plt.show()
+
+        return detected_plate
+
+def process_image_old(image_path: str):
     print(f"\n[detect] Running YOLO on: {image_path}")
     detections = yolo_model.predict(source=image_path)
 
