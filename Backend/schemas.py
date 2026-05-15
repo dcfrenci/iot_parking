@@ -18,11 +18,13 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     new_pass: Optional[str] = None
     old_pass: Optional[str] = None
+    is_disabled: Optional[bool] = None
 
 class UserResponse(BaseModel):
     account_id: int
     name: str
     email: EmailStr
+    is_disabled: bool = False
     
     class Config:
         orm_mode = True
@@ -85,6 +87,8 @@ class ParkingBase(BaseModel):
     lat: float
     lon: float
     address: str
+    disabled_slot: int = 0
+    available_disabled_slot: int = 0
 
 class ParkingResponse(ParkingBase):
     parking_id: int

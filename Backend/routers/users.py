@@ -53,6 +53,8 @@ def update_user(user_update: schemas.UserUpdate, db: Session = Depends(get_db)):
     if user_update.new_pass and user_update.old_pass:
         # Verify old password before updating
         user.hashed_password = user_update.new_pass + "notreallyhashed"
+    if user_update.is_disabled is not None:
+        user.is_disabled = user_update.is_disabled
         
     db.commit()
     db.refresh(user)

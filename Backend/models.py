@@ -9,6 +9,7 @@ class User(Base):
     name = Column(String, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    is_disabled = Column(Boolean, default=False)
     
     # Preferences
     pref_distance = Column(Float, default=2.5)
@@ -46,8 +47,12 @@ class Parking(Base):
     
     parking_id = Column(Integer, primary_key=True, index=True)
     parking_name = Column(String, index=True)
+
     total_slot = Column(Integer)
     available_slot = Column(Integer)
+    disabled_slot = Column(Integer, default=0)
+    available_disabled_slot = Column(Integer, default=0)
+
     price_per_hour = Column(Float)
     lat = Column(Float)
     lon = Column(Float)
@@ -62,6 +67,7 @@ class Parked(Base):
     entry_time = Column(DateTime)
     amount = Column(Float, default=0.0)
     is_paid = Column(Boolean, default=False)
+    used_disabled_slot = Column(Boolean, default=False)
 
 class Booking(Base):
     __tablename__ = "bookings"

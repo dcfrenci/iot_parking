@@ -1,27 +1,26 @@
 from lpr_model import *
 from enum import Enum
 import requests
-
 import re
 
-CAMERA_INDEX = 0    # 0 = integrata, 1 = USB
-OCR_EVERY_N  = 10    # esegui OCR solo ogni N frame (alleggerisce il carico)
-
-N_STABLE_FRAMES = 8
+CAMERA_INDEX        = 0   # 0 = integrata, 1 = USB
+N_STABLE_FRAMES     = 8
 STABLE_PIXEL_THRESH = 8
-#MIN_SHARPNESS
-COOLDOWN_FRAMES = 30
+COOLDOWN_FRAMES     = 30
 
-BASE_URL = "http://127.0.0.1:8000/v1"
+BASE_URL   = "http://127.0.0.1:8000/v1"
 PARKING_ID = 1
 
 session = requests.Session()
 
+# Regex con fullmatch: l'intera stringa deve essere AA000AA, niente di più
+PLATE_PATTERN = re.compile(r"[A-Z]{2}[0-9]{3}[A-Z]{2}")
+
 class State(Enum):
-    EMPTY = "EMPTY"
+    EMPTY       = "EMPTY"
     APPROACHING = "APPROACHING"
-    STOP = "STOP"
-    ANALYSIS = "ANALYSIS"
+    STOP        = "STOP"
+    ANALYSIS    = "ANALYSIS"
 
 
 def bbox_is_stable(a, b, thresh):
@@ -36,12 +35,11 @@ def run_webcam():
 
     print("[webcam] Avviato — premi Q per uscire, S per salvare il frame.")
 
-    frame_count = 0
-    state = State.EMPTY
-    last_bbox = None
+    frame_count  = 0
+    state        = State.EMPTY
+    last_bbox    = None
     stable_count = 0
-    best_crop = None
-    cooldown = 0
+    cooldown     = 0
 
     while True:
         ret, frame = cap.read()
@@ -51,106 +49,112 @@ def run_webcam():
 
         frame_count += 1
 
-        # se non in cooldown verifica se una targa è entrata all'interno del frame e salva le coordinate
         if cooldown > 0:
             cooldown -= 1
         else:
-            results = yolo_model.predict(source=frame)
+            results     = yolo_model.predict(source=frame, verbose=False)
             found_boxes = []
             for result in results:
-                if result.boxes == None:
+                if result.boxes is None:
                     continue
                 for box in result.boxes:
                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
                     found_boxes.append((x1, y1, x2, y2))
-            
+
             plate_detected = len(found_boxes) > 0
 
-
-            # macchina a stati
+            # --- Macchina a stati ---
 
             if state == State.EMPTY:
                 if plate_detected:
                     print("EMPTY -> APPROACHING")
-                    state = State.APPROACHING
-                    last_bbox = found_boxes[0]
+                    state        = State.APPROACHING
+                    last_bbox    = found_boxes[0]
                     stable_count = 0
-            
+
             elif state == State.APPROACHING:
                 if not plate_detected:
                     print("APPROACHING -> EMPTY (lost plate)")
                     state = State.EMPTY
                 else:
-                    x1, y1, x2, y2 = found_boxes[0]
-
                     if last_bbox and bbox_is_stable(found_boxes[0], last_bbox, STABLE_PIXEL_THRESH):
                         stable_count += 1
                     else:
                         stable_count = 0
-                    
                     last_bbox = found_boxes[0]
 
                     if stable_count >= N_STABLE_FRAMES:
                         print("APPROACHING -> STOP")
                         state = State.STOP
-            
+
             elif state == State.STOP:
                 print("STOP -> ANALYSIS")
                 state = State.ANALYSIS
-            
+
             elif state == State.ANALYSIS:
-                
+
                 plate_text = process_image(frame)
 
-                # Check format (AA 000 AA)
-                if not re.findall("[A-Z]{2}[0-9]{3}[A-Z]{2}", plate_text):
-                    print(f"\t--> Incorrect format (AA000AA): {plate_text}")
-                    break
+                # FIX 1: fullmatch invece di findall — evita match parziali
+                if not plate_text or not PLATE_PATTERN.fullmatch(plate_text):
+                    print(f"\t--> Not valid plate format: {plate_text!r}")
+                    # FIX 2: NON fare break — torna a EMPTY e continua la webcam
+                    state    = State.EMPTY
+                    cooldown = COOLDOWN_FRAMES
+                    continue
 
-                # Check database for the plate
-                plate = session.get(f"{BASE_URL}/plate", params={"plate_text": plate_text})
-                
-                if plate.status_code != 200:
-                    print(f"\t--> The plate {plate_text} was not found")
-                    break
-                
-                plate = plate.json()
+                # Verifica targa nel DB
+                resp = session.get(f"{BASE_URL}/plate", params={"plate_text": plate_text})
+                if resp.status_code != 200:
+                    print(f"\t--> Targa {plate_text} non trovata")
+                    state    = State.EMPTY
+                    cooldown = COOLDOWN_FRAMES
+                    continue
 
-                # Check if active
-                if not plate["active"]:
-                    print(f"\t--> The plate {plate_text} is not active")
-                    break
+                plate = resp.json()
 
-                # Check for payment
-                payment = session.get(f"{BASE_URL}/user/payment", params={"account_id": plate["account_id"]})
+                # FIX 3: campo corretto è is_active, non active
+                if not plate["is_active"]:
+                    print(f"\t--> Targa {plate_text} not active")
+                    state    = State.EMPTY
+                    cooldown = COOLDOWN_FRAMES
+                    continue
 
+                # Verifica metodo di pagamento
+                payment = session.get(
+                    f"{BASE_URL}/user/payment",
+                    params={"account_id": plate["account_id"]}
+                )
                 if payment.status_code != 200:
-                    print(f"\t--> The payment method linked to the plate {plate_text} was not found")
-                    break
+                    print(f"\t--> Payment method not found for: {plate_text}")
+                    state    = State.EMPTY
+                    cooldown = COOLDOWN_FRAMES
+                    continue
 
-                # Create new session
-                payload = {
-                    "account_id": plate["account_id"],
-                    "parking_id": PARKING_ID,
-                    "plate_number": plate_text
-                }
-                
-                res = session.post(f"{BASE_URL}/paying", json=payload)
-                if res.status_code in [200, 201]:
-                    print(f"Success! Session started for plate {plate_text}")
+                # FIX 4: call gate/entry (non /paying direttamente)
+                # gate/entry gestisce MQTT, contatori disabili e doppio ingresso
+                res = session.post(
+                    f"{BASE_URL}/gate/entry",
+                    json={"plate_text": plate_text}
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    msg  = f"Success! Session started for plate {plate_text}"
+                    if data.get("used_disabled_slot"):
+                        msg += " [disabled slot]"
+                    print(f"\t--> {msg}")
                 else:
-                    print(f"Failed to create session: {res.text}")
-                
+                    print(f"\t--> Gate entry failed: {res.text}")
+
                 print("ANALYSIS -> EMPTY")
-                state = State.EMPTY
+                state    = State.EMPTY
                 cooldown = COOLDOWN_FRAMES
 
-            
-        # ── HUD ─────────────────────────────────────────────────────
+        # --- HUD ---
         cv2.putText(frame, f"Stato: {state.value}  Cooldown: {cooldown}",
                     (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (200, 200, 200), 1)
         cv2.putText(frame, "Q=esci  S=salva",
-                    (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (200, 200, 200), 1)
+                    (10, 48), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (200, 200, 200), 1)
         cv2.imshow("Webcam — License Plate Detector", frame)
 
         key = cv2.waitKey(1) & 0xFF

@@ -165,7 +165,7 @@ def process_image(image_path: str):
 
         print(result.boxes.conf)
 
-        if result.boxes.conf[0] < CONF_THRESH:
+        if len(result.boxes.conf) == 0 or result.boxes.conf[0] < CONF_THRESH:
             continue
 
         if result.boxes is None or len(result.boxes) == 0:
