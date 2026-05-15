@@ -81,7 +81,6 @@ fun MapScreen(viewModel: MapViewModel) {
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        // Calculate the exact height for the expanded map (Total height - Search bar and paddings)
         val expandedMapHeight = maxHeight - 100.dp
 
         PullToRefreshBox(
@@ -266,6 +265,10 @@ private fun ParkingPopup(
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     LabeledInfo(label = "Price",     value = "€ ${parking.pricePerHour}/h")
                     LabeledInfo(label = "Available", value = "${parking.availableSlot}/${parking.totalSlot} slots")
+                    // Show disabled slots if there's any available in this parking
+                    if (parking.disabledSlot > 0) {
+                        LabeledInfo(label = "Disabled", value = "${parking.availableDisabledSlot}/${parking.disabledSlot} slots")
+                    }
                 }
             }
             IconButton(onClick = onDismiss) {
@@ -332,6 +335,17 @@ private fun ParkingListItem(parking: Parking) {
                     else
                         MaterialTheme.colorScheme.error
                 )
+                // Show disabled slots overview under regular slots if parking has disabled slots
+                if (parking.disabledSlot > 0) {
+                    Text(
+                        text  = "${parking.availableDisabledSlot}/${parking.disabledSlot} disabled",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (parking.availableDisabledSlot > 0)
+                            MaterialTheme.colorScheme.tertiary
+                        else
+                            MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

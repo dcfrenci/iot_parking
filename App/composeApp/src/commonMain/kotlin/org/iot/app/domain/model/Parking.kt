@@ -8,6 +8,8 @@ data class Parking(
     val longitude: Double,
     val availableSlot: Int,
     val totalSlot: Int,
+    val disabledSlot: Int,
+    val availableDisabledSlot: Int,
     val pricePerHour: Double,
 )
 
@@ -31,5 +33,6 @@ data class Session(
     val parking: Parking,
     val entryTime: String,
     val amount: Double,
-    val isPaid: Boolean
+    val isPaid: Boolean,
+    val usedDisabledSlot: Boolean
 )

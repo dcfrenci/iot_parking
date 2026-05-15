@@ -77,7 +77,7 @@ fun HomeScreen(viewModel: HomeViewModel) {
         NewBookingDialog(
             availableParkings = uiState.availableParkings,
             availablePlates   = uiState.plates,
-            onConfirm         = { name, parkingId, plate, date, days -> // <-- 'date' AGGIUNTA QUI
+            onConfirm         = { name, parkingId, plate, date, days ->
                 viewModel.submitNewBooking(
                     name      = name,
                     parkingId = parkingId,
@@ -264,6 +264,11 @@ private fun CurrentlyParkedCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     InfoChip(Res.drawable.timer, "Entered",      formatStartedAt(session.entryTime))
                     InfoChip(Res.drawable.euro,  "Current cost", "€ $currentCost")
+
+                    // Display an info tag if the car is actively using a disabled parking slot
+                    if (session.usedDisabledSlot) {
+                        InfoChip(Res.drawable.local_parking, "Slot", "Disabled")
+                    }
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
@@ -572,7 +577,6 @@ private fun NewBookingDialog(
                     if (step == 0) step = 1
                     else {
                         val pId = selectedParking?.parkingId ?: return@Button
-                        // Passa 'formattedDate' al viewmodel
                         onConfirm(bookingName, pId, selectedPlate, formattedDate, days)
                     }
                 },

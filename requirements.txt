@@ -26,3 +26,7 @@ sqlalchemy
 pydantic
 pydantic[email]
 bcrypt
+
+# Arduino
+paho-mqtt
+python-dotenv

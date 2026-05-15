@@ -39,6 +39,8 @@ class ParkingRepositoryImpl(
         longitude = lon,
         availableSlot = availableSlot,
         totalSlot = totalSlot,
+        disabledSlot = disabledSlot,
+        availableDisabledSlot = availableDisabledSlot,
         pricePerHour = pricePerHour,
     )
 
@@ -50,6 +52,8 @@ class ParkingRepositoryImpl(
         lon = longitude,
         availableSlot = availableSlot,
         totalSlot = totalSlot,
+        disabledSlot = disabledSlot,
+        availableDisabledSlot = availableDisabledSlot,
         pricePerHour = pricePerHour,
     )
 
@@ -82,5 +86,6 @@ class ParkingRepositoryImpl(
         entryTime = entryTime,
         amount = amount,
         isPaid = isPaid,
+        usedDisabledSlot = usedDisabledSlot
     )
 }

@@ -19,8 +19,8 @@ actual fun WebMapView(
     modifier: Modifier,
     centerLat: Double,
     centerLon: Double,
-    userLat: Double?, // Added
-    userLon: Double?, // Added
+    userLat: Double?,
+    userLon: Double?,
     zoom: Int,
     parkings: List<Parking>,
     onPinClicked: (Parking) -> Unit,
@@ -56,7 +56,6 @@ actual fun WebMapView(
 
                 loadDataWithBaseURL(
                     "https://unpkg.com",
-                    // Pass the new variables here
                     buildMapHtml(centerLat, centerLon, userLat, userLon, zoom, parkings),
                     "text/html",
                     "UTF-8",
@@ -67,7 +66,6 @@ actual fun WebMapView(
         update = { webView ->
             webView.loadDataWithBaseURL(
                 "https://unpkg.com",
-                // Pass the new variables here too
                 buildMapHtml(centerLat, centerLon, userLat, userLon, zoom, currentParkings),
                 "text/html",
                 "UTF-8",
@@ -97,16 +95,18 @@ private fun buildMapHtml(
     val markers = parkings.joinToString("\n") { p ->
         val color = if (p.availableSlot > 0) "#4CAF50" else "#F44336"
         val name = p.parkingName.replace("'", "\\'")
+
+        // Check for disabled slots and append HTML if they exist
+        val disabledInfo = if (p.disabledSlot > 0) "<br/>♿ ${p.availableDisabledSlot}/${p.disabledSlot} disabled slots" else ""
+
         """L.circleMarker([${p.latitude},${p.longitude}],{radius:12,color:'$color',fillColor:'$color',fillOpacity:0.85,weight:2})
-          .bindPopup('<b>$name</b><br/>€${p.pricePerHour}/h · ${p.availableSlot}/${p.totalSlot} slots')
+          .bindPopup('<b>$name</b><br/>€${p.pricePerHour}/h · ${p.availableSlot}/${p.totalSlot} slots$disabledInfo')
           .on('click',function(){AndroidBridge.onParkingSelected('${p.parkingId}');})
           .addTo(map);"""
     }
 
-    // Evaluate the user pin logic in Kotlin using a custom CSS divIcon
     val userMarkerScript = if (userLat != null && userLon != null) {
         """
-        // Define a custom animated blue dot
         var userIcon = L.divIcon({
             className: 'custom-user-marker',
             html: '<div class="pulse"></div><div class="dot"></div>',
@@ -114,7 +114,6 @@ private fun buildMapHtml(
             iconAnchor: [10, 10]
         });
         
-        // Add the user marker to the map
         L.marker([$userLat, $userLon], {icon: userIcon, zIndexOffset: 1000})
             .addTo(map)
             .bindPopup('<b>You are here</b>');
@@ -128,8 +127,6 @@ private fun buildMapHtml(
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
     *{margin:0;padding:0}html,body,#map{width:100%;height:100%}
-    
-    /* Current Location Blue Dot Styles */
     .custom-user-marker { position: relative; }
     .custom-user-marker .dot {
         width: 14px; height: 14px;
@@ -160,7 +157,6 @@ private fun buildMapHtml(
 var map=L.map('map',{zoomControl:true}).setView([$centerLat,$centerLon],$zoom);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 
-// Inject the Kotlin-evaluated scripts here
 $userMarkerScript
 $markers
 

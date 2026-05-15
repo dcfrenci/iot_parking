@@ -146,7 +146,19 @@ class HomeViewModel(
                 return@launch
             }
 
-            val dummyParking = Parking(parkingId, "", "", 0.0, 0.0, 0, 0, 0.0)
+            // Fixed missing parameters in Dummy Parking Object
+            val dummyParking = Parking(
+                parkingId = parkingId,
+                parkingName = "",
+                address = "",
+                latitude = 0.0,
+                longitude = 0.0,
+                availableSlot = 0,
+                totalSlot = 0,
+                disabledSlot = 0,
+                availableDisabledSlot = 0,
+                pricePerHour = 0.0
+            )
             val newBooking = Booking(0, name, dummyParking, selectedPlate, date, days, 0)
 
             createBooking(accountId.value, newBooking).onSuccess {
