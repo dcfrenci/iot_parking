@@ -47,7 +47,7 @@ paddle_engine = PaddleOCR(use_textline_orientation=True, lang='en')
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 def clean_plate_text(raw: str) -> str:
-    """Keep only uppercase letters and digits — typical licence-plate charset."""
+    """Keep only uppercase letters and digits."""
     return re.sub(r'[^A-Z0-9]', '', raw.upper())
 
 
@@ -157,9 +157,40 @@ def run_paddleocr(image: np.ndarray) -> tuple:
 # ─────────────────────────────────────────────────────────────────────────────
 # Main pipeline
 # ─────────────────────────────────────────────────────────────────────────────
-def process_image(image_path: str):
-    print(f"\n[detect] Running YOLO on: {image_path}")
-    detections = yolo_model.predict(source=image_path)
+def process_crop_image(crop):
+    
+    print(f"\n[detect] Running OCR")
+    
+    resized, gray, thresh_otsu, thresh_adapt = preprocess(crop)
+
+    print("  [ocr] Otsu threshold:")
+    paddle_text_otsu, conf_otsu = run_paddleocr(thresh_otsu)
+
+    print("  [ocr] Adaptive threshold:")
+    paddle_text_adapt, conf_adapt = run_paddleocr(thresh_adapt)
+
+    # ── Pick best Paddle result ────────────────────────────────────
+    if not PLATE_PATTERN.fullmatch(paddle_text_otsu) and not PLATE_PATTERN.fullmatch(paddle_text_adapt):
+        print("  [warn] Wrong OCR match, skipping.")
+        return None
+    elif not PLATE_PATTERN.fullmatch(paddle_text_otsu):
+        best_paddle, best_conf = paddle_text_adapt, conf_adapt
+    elif not PLATE_PATTERN.fullmatch(paddle_text_adapt):
+        best_paddle, best_conf = paddle_text_otsu,  conf_otsu
+    else:
+        if conf_otsu >= conf_adapt:
+            best_paddle, best_conf = paddle_text_otsu,  conf_otsu
+        else:
+            best_paddle, best_conf = paddle_text_adapt, conf_adapt
+            
+    print(f"\n  ★ Best PaddleOCR : {best_paddle}  [conf: {best_conf:.2f}]")
+    
+    return best_paddle
+
+
+def process_image(detections):
+    
+    print(f"\n[detect] Running OCR")
 
     for result in detections:
         img = result.orig_img
