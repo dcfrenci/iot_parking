@@ -104,7 +104,7 @@ def paddle_worker(worker_name, ocr_queue):
         task = ocr_queue.get()
         
         if task is None:
-            print("AI Worker: Shutting down.")
+            print(f"[{worker_name}]: Shutting down.")
             ocr_queue.task_done()
             break
         

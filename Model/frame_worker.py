@@ -27,7 +27,7 @@ def frame_worker(worker_name, frame_queue, ocr_queue, output_queue):
         task = frame_queue.get()
         
         if task is None:
-            print(f"{worker_name}: Shutting down.")
+            print(f"[{worker_name}]: Shutting down.")
             frame_queue.task_done()
             break
         

@@ -21,7 +21,7 @@ def clip_worker(worker_name, input_queue, entrance_queue, exit_queue):
         task = input_queue.get()
         
         if task is None:
-            print("AI Worker: Shutting down.")
+            print(f"[{worker_name}]: Shutting down.")
             input_queue.task_done()
             break
             
@@ -42,3 +42,5 @@ def clip_worker(worker_name, input_queue, entrance_queue, exit_queue):
             exit_queue.put_nowait(([processed_exit], exit_frame))
         except queue.Full:
             print("\tWorker exit is full")
+            
+        input_queue.task_done()
