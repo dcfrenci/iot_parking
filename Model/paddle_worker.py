@@ -6,10 +6,11 @@ from paddleocr import PaddleOCR
 import numpy as np
 import cv2
 import re
+import queue
 
 PLATE_PATTERN = re.compile(r"[A-Z]{2}[0-9]{3}[A-Z]{2}")
 
-def paddle_worker(worker_name, ocr_queue):
+def paddle_worker(worker_name, ocr_queue, output_queue):
     class Model():
         def __init__(self):
             print("[init] Loading PaddleOCR")
@@ -98,13 +99,18 @@ def paddle_worker(worker_name, ocr_queue):
             return clean, best_confidence
     
     model = Model()
-    print(f"[worker] {worker_name} is ready")
+    print(f"\t- [{worker_name}] is ready")
+    
+    try:
+        output_queue.put(None)
+    except queue.Full:
+        pass
     
     while True:
         task = ocr_queue.get()
         
         if task is None:
-            print(f"[{worker_name}]: Shutting down.")
+            print(f"\t- [{worker_name}]: Shutting down")
             ocr_queue.task_done()
             break
         

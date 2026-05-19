@@ -3,7 +3,7 @@ import queue
 
 MODEL_PATH   = 'Model/yolov11x-license-plate.pt'
 
-def clip_worker(worker_name, input_queue, entrance_queue, exit_queue):
+def clip_worker(worker_name, input_queue, entrance_queue, exit_queue, output_queue):
     class Model:
         def __init__(self):
             print("[init] Loading YOLO model")
@@ -15,13 +15,18 @@ def clip_worker(worker_name, input_queue, entrance_queue, exit_queue):
             return res[0], res[1]
     
     model = Model()
-    print(f"[worker] {worker_name} is ready")
+    print(f"\t- [{worker_name}] is ready")
+    
+    try:
+        output_queue.put(None)
+    except queue.Full:
+        pass
     
     while True:
         task = input_queue.get()
         
         if task is None:
-            print(f"[{worker_name}]: Shutting down.")
+            print(f"\t- [{worker_name}]: Shutting down")
             input_queue.task_done()
             break
             

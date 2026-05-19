@@ -75,17 +75,23 @@ def analyze(plate_text, entering):
 def run_webcam():
     """Run the webcam and split the input between entrance and exit thread."""
     
+    print("\nStarting all worker -----------------------------")
+    
     input_queue = queue.Queue(maxsize=20)
     ocr_queue = queue.Queue(maxsize=20)
     entrance_queue = queue.Queue(maxsize=10)
     exit_queue = queue.Queue(maxsize=10)
     output_queue = queue.Queue(maxsize=20)
     
-    clip_thread = threading.Thread(target=clip_worker, args=("Clip Worker", input_queue, entrance_queue, exit_queue)).start()
-    paddle_thread = threading.Thread(target=paddle_worker, args=("Paddle Worker", ocr_queue), daemon=True).start()
+    clip_thread = threading.Thread(target=clip_worker, args=("Clip Worker", input_queue, entrance_queue, exit_queue, output_queue)).start()
+    paddle_thread = threading.Thread(target=paddle_worker, args=("Paddle Worker", ocr_queue, output_queue), daemon=True).start()
     entrance_thread = threading.Thread(target=frame_worker, args=(ENTRANCE_WORKER, entrance_queue, ocr_queue, output_queue), daemon=True).start()
     exit_thread = threading.Thread(target=frame_worker, args=(EXIT_WORKER, exit_queue, ocr_queue, output_queue), daemon=True).start()
     
+    for _ in range(4):
+        output_queue.get()
+        
+    print("\n\nStarting webcam input ---------------------------")
     
     cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
     if not cap.isOpened():
@@ -141,7 +147,7 @@ def run_webcam():
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
-            print("\nShutting down")
+            print("\nShutting down all worker ------------------------")
             try:
                 input_queue.put(None, timeout=2)
                 ocr_queue.put(None, timeout=2)

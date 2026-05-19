@@ -21,13 +21,17 @@ def frame_worker(worker_name, frame_queue, ocr_queue, output_queue):
     last_bbox    = None
     stable_count = 0
     
-    print(f"[worker] {worker_name} is ready")
+    print(f"\t- [{worker_name}] is ready")
+    try:
+        output_queue.put(None)
+    except queue.Full:
+        pass
     
     while True:
         task = frame_queue.get()
         
         if task is None:
-            print(f"[{worker_name}]: Shutting down.")
+            print(f"\t- [{worker_name}]: Shutting down")
             frame_queue.task_done()
             break
         
