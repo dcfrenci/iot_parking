@@ -147,7 +147,7 @@ def run_webcam():
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
-            print("\nShutting down all worker ------------------------")
+            print("\n\nShutting down all worker ------------------------")
             try:
                 input_queue.put(None, timeout=2)
                 ocr_queue.put(None, timeout=2)
@@ -155,7 +155,6 @@ def run_webcam():
                 exit_queue.put(None, timeout=2)
             except queue.Full:
                 print("[main] Warning: Queues are completely blocked during shutdown.")
-            
             break
         elif key == ord('s'):
             path = f"Debug/frame_{frame_count:05d}.jpg"

@@ -83,8 +83,6 @@ def gate_entry(data: schemas.GateEntryRequest, db: Session = Depends(get_db)):
     return {"status": "ok", "plate": data.plate_text}
 
 
-
-
 @router.post("/gate/exit")
 def gate_exit(data: schemas.GateExitRequest, db: Session = Depends(get_db)):
 
@@ -116,7 +114,6 @@ def gate_exit(data: schemas.GateExitRequest, db: Session = Depends(get_db)):
         parking.available_slot = min(
             parking.total_slot, parking.available_slot + 1
         )
-    
 
     db.commit()
 
