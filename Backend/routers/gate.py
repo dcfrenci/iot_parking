@@ -6,7 +6,6 @@ from database import get_db
 import paho.mqtt.client as mqtt
 import os
 from dotenv import load_dotenv
-from sqlalchemy import update
 
 load_dotenv()
 
@@ -16,15 +15,18 @@ PARKING_ID = int(os.getenv("PARKING_ID", 1))
 MQTT_BROKER = os.getenv("MQTT_BROKER", "127.0.0.1")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 
-# Client
-_mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="fastapi_gate")
-_mqtt.connect(MQTT_BROKER, MQTT_PORT)
-_mqtt.loop_start()
-
-def publish(topic: str, payload: str):
-    msg = _mqtt.publish(topic, payload, qos=1)
-    msg.wait_for_publish(timeout=2)
-
+# FIX 3: Ensure unique client IDs or handle MQTT gracefully so it doesn't crash the API
+def publish_mqtt(topic: str, payload: str):
+    try:
+        # Using a unique client ID per request to avoid worker conflicts
+        client_id = f"fastapi_gate_{datetime.now().timestamp()}"
+        temp_mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
+        temp_mqtt.connect(MQTT_BROKER, MQTT_PORT)
+        temp_mqtt.publish(topic, payload, qos=1)
+        temp_mqtt.disconnect()
+    except Exception as e:
+        print(f"MQTT Publish failed: {e}")
+        # We catch the exception so the HTTP request still returns 200 OK to the camera
 
 
 @router.post("/gate/entry")
@@ -45,7 +47,7 @@ def gate_entry(data: schemas.GateEntryRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Vehicle already has an active session")
     
-    # Verify if disabled user
+    # Verify user disabled status
     user = db.query(models.User).filter(
         models.User.account_id == plate.account_id
     ).first()
@@ -55,16 +57,15 @@ def gate_entry(data: schemas.GateEntryRequest, db: Session = Depends(get_db)):
     if not parking:
         raise HTTPException(status_code=404, detail="Parking not found")
     
-    # Number of slots update
-    if use_disabled:
-        if parking.available_disabled_slot <= 0:
-            raise HTTPException(status_code=403, detail="No disabled slots available")
+    # FIX 2: Corrected slot logic. If disabled slots are full, fallback to regular slots.
+    assigned_disabled_slot = False
+    if use_disabled and parking.available_disabled_slot > 0:
         parking.available_disabled_slot -= 1
-    else:
-        if parking.available_slot <= 0:
-            raise HTTPException(status_code=403, detail="No available slots")
+        assigned_disabled_slot = True
+    elif parking.available_slot > 0:
         parking.available_slot -= 1
-
+    else:
+        raise HTTPException(status_code=403, detail="No available slots (regular or disabled)")
 
     new_session = models.Parked(
         plate_id=plate.plate_id,
@@ -72,13 +73,14 @@ def gate_entry(data: schemas.GateEntryRequest, db: Session = Depends(get_db)):
         entry_time=datetime.now(),
         amount=0.0,
         is_paid=False,
-        used_disabled_slot=use_disabled
+        used_disabled_slot=assigned_disabled_slot
     )
+    
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
 
-    publish("parking/gate/entry", "o1")
+    publish_mqtt("parking/gate/entry", "o1")
 
     return {"status": "ok", "plate": data.plate_text}
 
@@ -92,18 +94,22 @@ def gate_exit(data: schemas.GateExitRequest, db: Session = Depends(get_db)):
     if not plate.is_active:
         raise HTTPException(status_code=403, detail="Plate is not active")
 
-
     session = db.query(models.Parked).filter(
         models.Parked.plate_id == plate.plate_id,
         models.Parked.is_paid == False
     ).first()
+    
     if not session:
         raise HTTPException(status_code=404, detail="No active session found")
 
+    # FIX 1: Anti-Race Condition check (Prevent immediate exit from double-read)
+    duration_seconds = (datetime.now() - session.entry_time).total_seconds()
+    if duration_seconds < 60: # Must be inside for at least 60 seconds
+        raise HTTPException(status_code=400, detail="Session too short to exit (double read prevented)")
 
     parking = db.query(models.Parking).filter(models.Parking.parking_id == PARKING_ID).first()
-    duration = (datetime.now() - session.entry_time).total_seconds() / 3600
-    session.amount = round(duration * parking.price_per_hour, 2)
+    duration_hours = duration_seconds / 3600
+    session.amount = round(duration_hours * parking.price_per_hour, 2)
     session.is_paid = True
 
     if session.used_disabled_slot:
@@ -117,6 +123,6 @@ def gate_exit(data: schemas.GateExitRequest, db: Session = Depends(get_db)):
 
     db.commit()
 
-    publish("parking/gate/exit", "o2")
+    publish_mqtt("parking/gate/exit", "o2")
 
     return {"status": "ok", "plate": data.plate_text, "amount": session.amount}
