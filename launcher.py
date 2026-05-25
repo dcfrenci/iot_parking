@@ -40,7 +40,8 @@ def main():
                 "source .venv/bin/activate && python3 Model/webcam_handler.py"
             ]
             for cmd in commands:
-                subprocess.Popen(f"""osascript -e 'tell app "Terminal" to do script "{cmd}"'""", shell=True)
+                p = subprocess.Popen(f"""osascript -e 'tell app "Terminal" to do script "{cmd}"'""", shell=True)
+                processes.append(p)
                 
         else:
             print(f"Unsupported OS: {os_name}")
@@ -53,7 +54,7 @@ def main():
             for p in processes:
                 if p.poll() is not None:
                     raise KeyboardInterrupt 
-            time.sleep(1)
+            time.sleep(0.5)
 
     except KeyboardInterrupt:
         print("\nTerminal closure or exit detected. Shutting down all services...")
@@ -72,6 +73,12 @@ def main():
             subprocess.run("taskkill /IM mosquitto.exe /F", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
         elif os_name in ["Linux", "Darwin"]:
+            for p in processes:
+                try:
+                    p.terminate()
+                except Exception:
+                    pass
+
             target_processes = [
                 "mosquitto", 
                 "uvicorn", 
@@ -79,7 +86,6 @@ def main():
             ]
             
             for target in target_processes:
-                # Added -9 to force immediate termination (SIGKILL)
                 subprocess.run(
                     f"pkill -9 -f '{target}'", 
                     shell=True, 
@@ -87,15 +93,13 @@ def main():
                     stdout=subprocess.DEVNULL
                 )
             
-            # Extra safety net: specific direct kill for the mosquitto executable
-            subprocess.run(
-                "killall -9 mosquitto", 
-                shell=True, 
-                stderr=subprocess.DEVNULL, 
-                stdout=subprocess.DEVNULL
-            )
+            subprocess.run("killall -9 mosquitto", shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            
+            # On Linux, if gnome-terminal leaves orphan shells behind, this clears them
+            if os_name == "Linux":
+                subprocess.run("pkill -9 -f 'gnome-terminal'", shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
         
-        print("all the terminal were closed corretly")
+        print("all the terminals were closed correctly")
 
 if __name__ == "__main__":
     main()
