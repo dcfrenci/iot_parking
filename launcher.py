@@ -69,11 +69,9 @@ def main():
                     )
                 except Exception:
                     pass
-            # Extra safety net for Windows
             subprocess.run("taskkill /IM mosquitto.exe /F", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
         elif os_name in ["Linux", "Darwin"]:
-            # Broadened the targets to catch the processes regardless of their arguments
             target_processes = [
                 "mosquitto", 
                 "uvicorn", 
@@ -81,12 +79,21 @@ def main():
             ]
             
             for target in target_processes:
+                # Added -9 to force immediate termination (SIGKILL)
                 subprocess.run(
-                    f"pkill -f '{target}'", 
+                    f"pkill -9 -f '{target}'", 
                     shell=True, 
                     stderr=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL
                 )
+            
+            # Extra safety net: specific direct kill for the mosquitto executable
+            subprocess.run(
+                "killall -9 mosquitto", 
+                shell=True, 
+                stderr=subprocess.DEVNULL, 
+                stdout=subprocess.DEVNULL
+            )
         
         print("all the terminal were closed corretly")
 
