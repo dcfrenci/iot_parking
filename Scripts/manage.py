@@ -5,7 +5,7 @@ import os
 import sys
 import requests
 import argparse
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 try:
     import argcomplete
@@ -354,6 +354,76 @@ def cmd_delete_session():
         print(f"Success! Deleted session {s_id}")
     else:
         print(f"Failed: {res.text}")
+    
+def cmd_init_history():
+    print("\n--- Generating and Uploading Parking History (via API) ---")
+    import random
+    
+    HISTORY_DAYS = 180
+    
+    parkings_res = session.get(f"{BASE_URL}/parkings/all")
+    if parkings_res.status_code != 200:
+        print("Error: Could not fetch parkings. Run parkings-init first.")
+        return
+    
+    parkings = parkings_res.json()
+    
+    for p_summary in parkings:
+        PARKING_ID = p_summary["parking_id"]
+        
+        res = session.get(f"{BASE_URL}/parkings", params={"parking_id": PARKING_ID})
+        if res.status_code != 200:
+            print(f"  -> Skip parking {PARKING_ID}: not found")
+            continue
+            
+        parking = res.json()
+        total_slots = parking["total_slot"]
+        disabled_slots = parking["disabled_slot"]
+        
+        print(f"\n  -> Generating {HISTORY_DAYS} days for '{parking['parking_name']}' (ID: {PARKING_ID})...")
+        
+        end_time = datetime.now()
+        start_time = end_time - timedelta(days=HISTORY_DAYS)
+        current_time = start_time
+        payload_data = []
+        
+        while current_time <= end_time:
+            hour = current_time.hour
+            is_weekend = current_time.weekday() >= 5
+            
+            if 9 <= hour <= 18:
+                base_dis = 0.50 if not is_weekend else 0.30
+            else:
+                base_dis = 0.10
+            dec_dis = max(0.0, min(1.0, base_dis + random.uniform(-0.10, 0.10)))
+            disabled_occupied = int(dec_dis * disabled_slots)
+            
+            if not is_weekend:
+                if 8 <= hour <= 12: base_norm = 0.85
+                elif 13 <= hour <= 17: base_norm = 0.70
+                elif 18 <= hour <= 22: base_norm = 0.40
+                else: base_norm = 0.15
+            else:
+                if 17 <= hour <= 23: base_norm = 0.65
+                elif 10 <= hour <= 16: base_norm = 0.35
+                else: base_norm = 0.08
+            dec_norm = max(0.0, min(1.0, base_norm + random.uniform(-0.15, 0.15)))
+            occupied = int(dec_norm * total_slots)
+            
+            payload_data.append({
+                "timestamp": current_time.isoformat(),
+                "occupied_slots": occupied,
+                "disabled_occupied_slots": disabled_occupied
+            })
+            current_time += timedelta(hours=1)
+        
+        print(f"  -> Sending {len(payload_data)} records...")
+        res = session.post(f"{BASE_URL}/parkings/{PARKING_ID}/history", json=payload_data)
+        
+        if res.status_code == 201:
+            print(f"  -> Success!")
+        else:
+            print(f"  -> Failed: {res.status_code} - {res.text}")
 
 def cmd_init_database():
     print("\n========== STARTING DATABASE INITIALIZATION ==========")
@@ -362,10 +432,10 @@ def cmd_init_database():
     cmd_create_users()
     cmd_create_bookings()
     print("\n  Riepilogo targhe per i test:")
-    print("  AA111AA → Mario Rossi    | pagamento SI | normale  → ENTRA ✅")
-    print("  BB222BB → Luigi Bianchi  | pagamento NO | normale  → BLOCCATO ❌")
-    print("  CC333CC → Giuseppe Verdi | pagamento SI | disabile → ENTRA posto H ✅")
-    print("  DD444DD → Admin          | pagamento SI | normale  → ENTRA ✅")
+    print("  AA111AA → Mario Rossi    | pagamento SI | normale  → ENTRA")
+    print("  BB222BB → Luigi Bianchi  | pagamento NO | normale  → BLOCCATO")
+    print("  CC333CC → Giuseppe Verdi | pagamento SI | disabile → ENTRA posto H")
+    print("  DD444DD → Admin          | pagamento SI | normale  → ENTRA")
     print("\n========== DATABASE INITIALIZATION COMPLETE ==========")
 
 # ==========================================
@@ -379,6 +449,7 @@ def main():
         "admin-create":    cmd_create_admin,
         "admin-delete":    cmd_delete_admin,
         "parkings-init":   cmd_init_parkings,
+        "history-init":    cmd_init_history,
         "users-create":    cmd_create_users,
         "users-delete":    cmd_delete_users,
         "cars-delete":     cmd_delete_cars,

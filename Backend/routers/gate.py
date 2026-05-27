@@ -6,27 +6,13 @@ from database import get_db
 import paho.mqtt.client as mqtt
 import os
 from dotenv import load_dotenv
+from mqtt_client import mqtt_manager
 
 load_dotenv()
 
 router = APIRouter()
 
 PARKING_ID = int(os.getenv("PARKING_ID", 1))
-MQTT_BROKER = os.getenv("MQTT_BROKER", "127.0.0.1")
-MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
-
-# FIX 3: Ensure unique client IDs or handle MQTT gracefully so it doesn't crash the API
-def publish_mqtt(topic: str, payload: str):
-    try:
-        # Using a unique client ID per request to avoid worker conflicts
-        client_id = f"fastapi_gate_{datetime.now().timestamp()}"
-        temp_mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
-        temp_mqtt.connect(MQTT_BROKER, MQTT_PORT)
-        temp_mqtt.publish(topic, payload, qos=1)
-        temp_mqtt.disconnect()
-    except Exception as e:
-        print(f"MQTT Publish failed: {e}")
-        # We catch the exception so the HTTP request still returns 200 OK to the camera
 
 
 @router.post("/gate/entry")
@@ -80,7 +66,17 @@ def gate_entry(data: schemas.GateEntryRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_session)
 
-    publish_mqtt("parking/gate/entry", "o1")
+    # TODO: uncomment when real data collection is needed
+    # new_record = models.ParkinHistory(
+    #     parking_id=PARKING_ID,
+    #     timestamp=datetime.now(),
+    #     occupied_slots=parking.total_slot - parking.available_slot,
+    #     disabled_occupied_slots=parking.disabled_slot - parking.available_disabled_slot
+    # )
+    # db.add(new_record)
+    # db.commit()
+
+    mqtt_manager.publish("parking/gate/entry", "o1")
 
     return {"status": "ok", "plate": data.plate_text}
 
@@ -123,6 +119,16 @@ def gate_exit(data: schemas.GateExitRequest, db: Session = Depends(get_db)):
 
     db.commit()
 
-    publish_mqtt("parking/gate/exit", "o2")
+    # TODO: uncomment when real data collection is needed
+    # new_record = models.ParkinHistory(
+    #     parking_id=PARKING_ID,
+    #     timestamp=datetime.now(),
+    #     occupied_slots=parking.total_slot - parking.available_slot,
+    #     disabled_occupied_slots=parking.disabled_slot - parking.available_disabled_slot
+    # )
+    # db.add(new_record)
+    # db.commit()
+
+    mqtt_manager.publish("parking/gate/exit", "o2")
 
     return {"status": "ok", "plate": data.plate_text, "amount": session.amount}

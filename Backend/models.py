@@ -85,3 +85,21 @@ class Booking(Base):
     plate = relationship("Plate")
 
     owner = relationship("User", back_populates="bookings")
+
+class ParkinHistory(Base):
+    __tablename__ = "parking_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    parking_id = Column(Integer, ForeignKey("parkings.parking_id"))
+    timestamp = Column(DateTime, index=True)
+    occupied_slots = Column(Integer)
+    disabled_occupied_slots = Column(Integer)
+
+class Predictions(Base):
+    __tablename__ = "predictions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    parking_id = Column(Integer, ForeignKey("parkings.parking_id"))
+    timestamp = Column(DateTime, index=True)
+    occupied_slots = Column(Integer)
+    disabled_occupied_slots = Column(Integer)

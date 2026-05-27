@@ -93,7 +93,7 @@ def run_webcam():
         
     print("\n\nStarting webcam input ---------------------------")
     
-    cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
+    cap = cv2.VideoCapture(CAMERA_INDEX)
     if not cap.isOpened():
         print(f"[error] Not able to open the camera (index={CAMERA_INDEX})")
         return

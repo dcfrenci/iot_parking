@@ -115,3 +115,18 @@ class GateEntryRequest(BaseModel):
 
 class GateExitRequest(BaseModel):
     plate_text: str
+
+class ParkingPredictionResponse(BaseModel):
+    timestamp: datetime
+    predicted_occupancy: float
+    predicted_disabled_occupancy: float
+    percentage_full: float
+    percentage_disabled_full: float
+
+    class Config:
+        orm_mode = True
+
+class ParkingHistoryCreate(BaseModel):
+    timestamp: str
+    occupied_slots: int
+    disabled_occupied_slots: int

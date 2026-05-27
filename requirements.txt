@@ -30,3 +30,8 @@ bcrypt
 # Arduino
 paho-mqtt
 python-dotenv
+
+# Prediction
+prophet
+streamlit
+plotly
