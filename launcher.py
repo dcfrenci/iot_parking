@@ -53,6 +53,7 @@ def main():
         while True:
             for p in processes:
                 if p.poll() is not None:
+                    print(processes.index(p))
                     raise KeyboardInterrupt 
             time.sleep(0.5)
 

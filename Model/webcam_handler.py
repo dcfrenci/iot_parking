@@ -8,7 +8,7 @@ from clip_worker import clip_worker
 from frame_worker import frame_worker
 
 
-CAMERA_INDEX    = 0   # 0 = integrata, 1 = USB
+CAMERA_INDEX    = 0 # 0 = integrata, 1 = USB
 BASE_URL        = "http://127.0.0.1:8000/v1"
 PARKING_ID      = 1
 ENTRANCE_WORKER = "Entrance worker"
@@ -115,7 +115,8 @@ def run_webcam():
         height, width, _ = frame.shape
         middle = width // 2
 
-        if frame_count % 3 == 0:
+        if frame_count == 15:
+            frame_count = 0
             
             entrance_half = frame[:, :middle]
             exit_half = frame[:, middle:]
