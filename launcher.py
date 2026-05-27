@@ -14,8 +14,8 @@ def main():
         if os_name == "Windows":
             commands = [
                 "cmd /c mosquitto -v",
-                "cmd /c call conda activate iot_env && cd Backend && uvicorn backend:app --reload",
-                "cmd /c call conda activate iot_env && python Model/webcam_handler.py" 
+                "cmd /c call .venv\\Scripts\\activate && cd Backend && uvicorn backend:app --reload",
+                "cmd /c call .venv\\Scripts\\activate && python Model/webcam_handler.py" 
             ]
             
             for cmd in commands:
