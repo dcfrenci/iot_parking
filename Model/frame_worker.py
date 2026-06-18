@@ -4,6 +4,8 @@ import queue
 CONF_THRESH         = 0.65
 STABLE_PIXEL_THRESH = 8
 N_STABLE_FRAMES     = 8
+MAX_LOST_FRAMES     = 5
+MAX_OCR_TRY         = 5
 
 class State(Enum):
     EMPTY       = "EMPTY"
@@ -20,6 +22,8 @@ def frame_worker(worker_name, frame_queue, ocr_queue, output_queue):
     state        = State.EMPTY
     last_bbox    = None
     stable_count = 0
+    lost_frame_count = 0
+    ocr_try      = 0
     
     print(f"\t- [{worker_name}] is ready")
     try:
@@ -56,8 +60,12 @@ def frame_worker(worker_name, frame_queue, ocr_queue, output_queue):
                 stable_count = 0
         elif state == State.APPROACHING:
             if not plate_detected:
-                print("APPROACHING -> EMPTY (lost plate)")
-                state = State.EMPTY
+                if lost_frame_count > MAX_LOST_FRAMES:
+                    print("APPROACHING -> EMPTY (lost plate)")
+                    lost_frame_count == 0
+                    state = State.EMPTY
+                else:
+                    lost_frame_count += 1
             else:
                 if last_bbox and bbox_is_stable(found_boxes[0], last_bbox, STABLE_PIXEL_THRESH):
                     stable_count += 1
@@ -84,12 +92,18 @@ def frame_worker(worker_name, frame_queue, ocr_queue, output_queue):
                 
                 if plate_text is not None:
                     print("ANALYSIS -> EMPTY")
-                    state    = State.EMPTY
+                    state = State.EMPTY
                     
                     try:
                         output_queue.put_nowait((plate_crop, worker_name, plate_text))
                     except queue.Full:
                         pass
+                elif ocr_try > MAX_OCR_TRY:
+                    print("ANALYSIS -> EMPTY\t\t- Too many tries")
+                    ocr_try = 0
+                else:
+                    ocr_try += 1
+                
                 
             except queue.Full:
                 print(f"{worker_name}: OCR queue is full, skipping analysis.")

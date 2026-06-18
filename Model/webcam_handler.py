@@ -8,7 +8,7 @@ from clip_worker import clip_worker
 from frame_worker import frame_worker
 
 
-CAMERA_INDEX    = 0 # 0 = integrata, 1 = USB
+CAMERA_INDEX    = 4 # 0 = integrata, 1 = USB
 BASE_URL        = "http://127.0.0.1:8000/v1"
 PARKING_ID      = 1
 ENTRANCE_WORKER = "Entrance worker"
@@ -16,12 +16,33 @@ EXIT_WORKER     = "Exit worker"
 
 session = requests.Session()
 
+import time
+
+# Store the last time a plate was seen
+last_seen_plates = {}
+COOLDOWN_SECONDS = 10  # Ignore the same plate for 10 seconds
+
+def process_plate_detection(plate_text):
+    current_time = time.time()
+    # Check if the plate is in the cooldown period
+    if plate_text in last_seen_plates:
+        if (current_time - last_seen_plates[plate_text]) < COOLDOWN_SECONDS:
+            return False
+    # Update the timestamp for this plate
+    last_seen_plates[plate_text] = current_time
+    # Proceed to send the HTTP POST request to the backend
+    print(f"  [API] Sending entry request for {plate_text}...")
+    return True
+        
 
 def analyze(plate_text, entering):
     
     if not plate_text:
         print("\t--> Analysis aborted: No valid plate text extracted.")
         return None
+    
+    if not process_plate_detection(plate_text):
+        print(f"\t--> Plate {plate_text} ignored (cooldown active)")
     
     try:
         resp = session.get(f"{BASE_URL}/plate", params={"plate_text": plate_text})

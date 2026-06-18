@@ -94,6 +94,7 @@ def main():
                 )
             
             subprocess.run("killall -9 mosquitto", shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            subprocess.run("pkill mosquitto", shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
             
             # On Linux, if gnome-terminal leaves orphan shells behind, this clears them
             if os_name == "Linux":
