@@ -4,6 +4,7 @@ import paho.mqtt.client as mqtt
 
 client_id = "python_bridge_gate"
 arduino = serial.Serial("COM8", 9600, timeout=1)
+# arduino = serial.Serial("/dev/ttyUSB0", 9600, timeout=1)
 
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
 
