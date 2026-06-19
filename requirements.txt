@@ -30,6 +30,7 @@ bcrypt
 # Arduino
 paho-mqtt
 python-dotenv
+pyserial
 
 # Prediction
 prophet
