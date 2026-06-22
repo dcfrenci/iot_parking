@@ -4,7 +4,7 @@ import queue
 import cv2
 
 from paddle_worker import paddle_worker
-from clip_worker import clip_worker
+from yolo_worker import yolo_worker
 from frame_worker import frame_worker
 
 
@@ -104,7 +104,7 @@ def run_webcam():
     exit_queue = queue.Queue(maxsize=10)
     output_queue = queue.Queue(maxsize=20)
     
-    clip_thread = threading.Thread(target=clip_worker, args=("Clip Worker", input_queue, entrance_queue, exit_queue, output_queue)).start()
+    yolo_thread = threading.Thread(target=yolo_worker, args=("Yolo Worker", input_queue, entrance_queue, exit_queue, output_queue)).start()
     paddle_thread = threading.Thread(target=paddle_worker, args=("Paddle Worker", ocr_queue, output_queue), daemon=True).start()
     entrance_thread = threading.Thread(target=frame_worker, args=(ENTRANCE_WORKER, entrance_queue, ocr_queue, output_queue), daemon=True).start()
     exit_thread = threading.Thread(target=frame_worker, args=(EXIT_WORKER, exit_queue, ocr_queue, output_queue), daemon=True).start()
@@ -145,7 +145,7 @@ def run_webcam():
             try:
                 input_queue.put_nowait((entrance_half, exit_half))
             except queue.Full:
-                print("\tClip worker is full")
+                print("\tYolo worker is full")
                 
                 
             while not output_queue.empty():

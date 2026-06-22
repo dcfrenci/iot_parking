@@ -3,7 +3,7 @@ import queue
 
 MODEL_PATH   = 'Model/yolov11x-license-plate.pt'
 
-def clip_worker(worker_name, input_queue, entrance_queue, exit_queue, output_queue):
+def yolo_worker(worker_name, input_queue, entrance_queue, exit_queue, output_queue):
     class Model:
         def __init__(self):
             print("[init] Loading YOLO model")
