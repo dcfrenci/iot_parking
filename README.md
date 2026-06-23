@@ -1,5 +1,26 @@
+<div align="center">
 
+<h1>ParkNet</h1>
+<h3>Your all in one solution for parking management</h3>
 
+<p>
+  <a href="https://www.linkedin.com/in/matteo--bergamaschi/">Matteo Bergamaschi</a>,
+  <a href="https://www.linkedin.com/in/francesco-della-casa/">Francesco Della Casa</a>,
+</p>
+
+</div>
+
+## Table of content 
+- [Abstract](#abstract)
+- [Computer Vision](#computer-vision)
+  - [Multi-thread Pipeline](#multi-thread-pipeline)
+- [FastAPI](#fastapi)
+- [IOT](#iot)
+- [KMP Application](#kmp-application)
+- [Setup](#setup)
+    - [Enviroment](#enviroment)
+    - [Run](#run)
+    - [Database](#database)
 
 
 # Abstract
@@ -81,7 +102,7 @@ ANALYSIS --> EMPTY : OCR success or Too many tries
 ANALYSIS --> ANALYSIS : OCR failed / Queue is full
 ```
 
-## FastAPI
+# FastAPI
 The FastAPI backend serves as the central brain of the ParkNet ecosystem. It orchestrates the business logic, handles data persistence, and bridges the gap between the mobile application and the physical IoT hardware.
 
 Key Responsibilities & Stack:
@@ -91,7 +112,7 @@ Key Responsibilities & Stack:
 * **Smart Logic**: Dynamically fetches lot capacities (standard vs. accessible spaces) from the database, ensuring ultimate configuration flexibility and segregated capacity tracking.
 * **Data & Analytics**: Mines historical occupancy trends using the ParkingLog. It integrates with Prophet AI models for dedicated forecasting, feeding interactive data to a Streamlit and Plotly dashboard, and generating automated HTML weekly executive reports.
 
-## IOT
+# IOT
 ParkNet bridges the digital and physical worlds through a lightweight, highly responsive messaging ballet.
 
 The Hardware & Comm Stack:
@@ -106,7 +127,7 @@ The Execution Flow (Gate Opening):
 * **Command**: The backend issues an Open Command back to the MQTT Broker.
 * **Actuate**: The Python Bridge picks up the command, translates it into raw serial instructions (pyserial), and prompts the Arduino to operate the barrier smoothly.
 
-## KMP Application
+# KMP Application
 The user-facing component is built using Kotlin Multiplatform (KMP), offering a seamless, native experience for users to interact with the parking ecosystem.
 
 The Seamless User Journey:
@@ -116,7 +137,7 @@ The Seamless User Journey:
 * **Frictionless Checkout**: When ready to leave, the user signals their departure via the app. The system auto-calculates the fare based on the precise duration logged in the backend.
 * **Exit**: Upon successful in-app payment, the backend communicates with the IoT gate, lifting the barrier automatically for a smooth drive away.
 
-## Setup
+# Setup
 
 ### Enviroment
 * Create and set the enviroment:
