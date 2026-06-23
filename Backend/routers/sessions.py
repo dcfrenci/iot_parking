@@ -30,57 +30,29 @@ def get_active_sessions(account_id: int, db: Session = Depends(get_db)):
         
     return formatted_sessions
 
+
 @router.post("/paying")
-def create_entry_session(data: schemas.SessionEntryCreate, db: Session = Depends(get_db)):
-    db_plate = db.query(models.Plate).filter(models.Plate.plate_text == data.plate_number).first()
-    
+def get_session_after_entry(data: schemas.SessionEntryCreate, db: Session = Depends(get_db)):
+    db_plate = db.query(models.Plate).filter(
+        models.Plate.plate_text == data.plate_number
+    ).first()
     if not db_plate:
         raise HTTPException(status_code=404, detail="Plate not registered in the system")
     if db_plate.account_id != data.account_id:
         raise HTTPException(status_code=403, detail="Plate does not belong to the provided account")
-        
+
     active_session = db.query(models.Parked).filter(
         models.Parked.plate_id == db_plate.plate_id,
         models.Parked.is_paid == False
     ).first()
-    if active_session:
-        raise HTTPException(status_code=400, detail="Vehicle is already parked in an active session")
 
-    # Verify disabled user
-    user = db.query(models.User).filter(
-        models.User.account_id == db_plate.account_id
-    ).first()
-    use_disabled = user.is_disabled if user else False
+    if not active_session:
+        raise HTTPException(
+            status_code=404,
+            detail="No active session found. The vehicle must pass through the gate first."
+        )
 
-    # Verifica parcheggio e scala il contatore corretto
-    parking = db.query(models.Parking).filter(
-        models.Parking.parking_id == data.parking_id
-    ).first()
-    if not parking:
-        raise HTTPException(status_code=404, detail="Parking not found")
-
-    if use_disabled:
-        if parking.available_disabled_slot <= 0:
-            raise HTTPException(status_code=403, detail="No disabled slots available")
-        parking.available_disabled_slot -= 1
-    else:
-        if parking.available_slot <= 0:
-            raise HTTPException(status_code=403, detail="No available slots")
-        parking.available_slot -= 1
-
-    new_session = models.Parked(
-        plate_id          = db_plate.plate_id,
-        parking_id        = data.parking_id,
-        entry_time        = datetime.now(),
-        amount            = 0.0,
-        is_paid           = False,
-        used_disabled_slot= use_disabled
-    )
-    
-    db.add(new_session)
-    db.commit()
-    db.refresh(new_session)
-    return new_session
+    return active_session
 
 @router.delete("/paying")
 def delete_session(session_id: int, db: Session = Depends(get_db)):

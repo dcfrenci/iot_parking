@@ -14,6 +14,34 @@ router = APIRouter()
 
 PARKING_ID = int(os.getenv("PARKING_ID", 1))
 
+# AGGIUNGERE intero blocco prima di @router.post("/gate/entry")
+
+def _decrement_slot(parking: models.Parking, use_disabled: bool) -> bool:
+    if use_disabled and parking.available_disabled_slot > 0:
+        parking.available_disabled_slot -= 1
+        return True
+    elif parking.available_slot > 0:
+        parking.available_slot -= 1
+        return False
+    else:
+        raise HTTPException(
+            status_code=403,
+            detail="No available slots"
+        )
+
+
+def _increment_slot(parking: models.Parking, used_disabled: bool) -> None:
+    if used_disabled:
+        parking.available_disabled_slot = min(
+            parking.disabled_slot,
+            parking.available_disabled_slot + 1
+        )
+    else:
+        parking.available_slot = min(
+            parking.total_slot,
+            parking.available_slot + 1
+        )
+
 
 @router.post("/gate/entry")
 def gate_entry(data: schemas.GateEntryRequest, db: Session = Depends(get_db)):
@@ -43,15 +71,7 @@ def gate_entry(data: schemas.GateEntryRequest, db: Session = Depends(get_db)):
     if not parking:
         raise HTTPException(status_code=404, detail="Parking not found")
     
-    # FIX 2: Corrected slot logic. If disabled slots are full, fallback to regular slots.
-    assigned_disabled_slot = False
-    if use_disabled and parking.available_disabled_slot > 0:
-        parking.available_disabled_slot -= 1
-        assigned_disabled_slot = True
-    elif parking.available_slot > 0:
-        parking.available_slot -= 1
-    else:
-        raise HTTPException(status_code=403, detail="No available slots (regular or disabled)")
+    assigned_disabled = _decrement_slot(parking, use_disabled)
 
     new_session = models.Parked(
         plate_id=plate.plate_id,
@@ -59,7 +79,7 @@ def gate_entry(data: schemas.GateEntryRequest, db: Session = Depends(get_db)):
         entry_time=datetime.now(),
         amount=0.0,
         is_paid=False,
-        used_disabled_slot=assigned_disabled_slot
+        used_disabled_slot=assigned_disabled
     )
     
     db.add(new_session)
@@ -104,18 +124,14 @@ def gate_exit(data: schemas.GateExitRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Session too short to exit (double read prevented)")
 
     parking = db.query(models.Parking).filter(models.Parking.parking_id == PARKING_ID).first()
+    
+    if not parking:
+        raise HTTPException(status_code=404, detail="Parking not found")
     duration_hours = duration_seconds / 3600
     session.amount = round(duration_hours * parking.price_per_hour, 2)
     session.is_paid = True
 
-    if session.used_disabled_slot:
-        parking.available_disabled_slot = min(
-            parking.disabled_slot, parking.available_disabled_slot + 1
-        )
-    else:
-        parking.available_slot = min(
-            parking.total_slot, parking.available_slot + 1
-        )
+    _increment_slot(parking, session.used_disabled_slot)
 
     db.commit()
 
