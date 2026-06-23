@@ -153,6 +153,10 @@ pip install -r requirements.txt
 ```
 
 ### Arduino
+* Connect all hardware following the schematics (*~iot_circuit_schemas.pdf*) to create the circuit:
+  <p>
+    <img src="media/swipe_demo2.gif" width="48%" alt="Swipe Gesture Demo" />
+  <p>
 * Load the arduino code (*~/Arduino/iot_parking_servo.ino*) inside the board ([Arduino IDE](https://support.arduino.cc/hc/en-us/articles/360019833020-Download-and-install-Arduino-IDE))
 * To test just the arduino you can use the command **o1** and **o2** on the serial monitor of arduino ide that will open the gates
 
