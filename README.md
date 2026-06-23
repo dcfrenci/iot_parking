@@ -19,8 +19,10 @@
 - [KMP Application](#kmp-application)
 - [Setup](#setup)
     - [Enviroment](#enviroment)
+    - [Arduino](#arduino)
     - [Run](#run)
     - [Database](#database)
+    - [FastAPI](#fastapi-1)
 
 
 # Abstract
@@ -85,7 +87,7 @@ flowchart TD
     style P fill:#AFEEEE
 ```
 
-In particular the frame worker implements a FSM to achieve reliable performance while capturing the plate on the car.
+In particular each **frame worker** implements a FSM to achieve reliable performance while capturing the plate on the car.
 ```mermaid
 stateDiagram-v2
 [*] --> EMPTY : Idle state
@@ -150,6 +152,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Arduino
+* Load the arduino code (*~/Arduino/iot_parking_servo.ino*) inside the board ([Arduino IDE](https://support.arduino.cc/hc/en-us/articles/360019833020-Download-and-install-Arduino-IDE))
+* To test just the arduino you can use the command **o1** and **o2** on the serial monitor of arduino ide that will open the gates
+
 ### Run
 * Set the correct camera input index and IOT device
 * Launch the program with the script **launcher.py** that will create 4 processes: 
@@ -180,3 +186,6 @@ To init the database with a default configuration use this command after launchi
 ```bash
 python3 manage.py init-database
 ```
+
+### FastAPI
+To easly see and test all the available API calls that the FastAPI server supports, you could use the *swaggerUI* that could be red at [localhost:8000/docs](localhost:8000/docs).
