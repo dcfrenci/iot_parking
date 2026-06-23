@@ -17,6 +17,8 @@ const int trigPin = 12;
 const int echoPin = 13;
 float duration, distance;
 bool precedingState = false;
+int stabilityCounter = 0;
+unsigned long lastSensorTime = 0; 
 
 // TIMER HANDLER
 unsigned long timerGate1 = 0;
@@ -50,24 +52,41 @@ void setup() {
 
 void loop() {
 
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
+  if (millis() - lastSensorTime >= 60) {
+    lastSensorTime = millis();
 
-  duration = pulseIn(echoPin, HIGH);
-  distance = duration * 0.034 / 2;
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
 
-  bool actualState = (distance > 0 && distance < 10);
-
-  if ( actualState != precedingState){
-    if (actualState) {
-      Serial.println("DS:1");
-    }else{
-      Serial.println("DS:0");
+    duration = pulseIn(echoPin, HIGH, 30000);
+    
+    if (duration == 0) {
+      distance = 999;
+    } else {
+      distance = duration * 0.034 / 2;
     }
-    precedingState = actualState;
+
+    bool actualState = (distance > 0 && distance < 10);
+
+    if (actualState == precedingState) {
+      stabilityCounter = 0;
+    } else {
+      stabilityCounter++;
+      
+      if (stabilityCounter >= 5) {
+        precedingState = actualState;
+        stabilityCounter = 0;
+        
+        if (precedingState) {
+          Serial.println("DS:1");
+        } else {
+          Serial.println("DS:0");
+        }
+      }
+    }
   }
 
   // SERIAL

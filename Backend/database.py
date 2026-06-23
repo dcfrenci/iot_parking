@@ -4,7 +4,7 @@ from sqlalchemy.orm import declarative_base
 
 DB_PATH = "sqlite:///./parking.db"
 
-engine = create_engine(DB_PATH, echo=True)
+engine = create_engine(DB_PATH, echo=False)
 SessionLocal = sessionmaker(engine, autocommit=False, autoflush=False)
 Base = declarative_base()
 

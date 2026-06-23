@@ -1,10 +1,12 @@
 import serial
 import threading
 import paho.mqtt.client as mqtt
+import time
+
 
 client_id = "python_bridge_gate"
-# arduino = serial.Serial("COM8", 9600, timeout=1)
-arduino = serial.Serial("/dev/ttyUSB0", 9600, timeout=1)
+arduino = serial.Serial("COM8", 9600, timeout=1)
+#arduino = serial.Serial("/dev/ttyUSB0", 9600, timeout=1)
 
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
 
@@ -31,7 +33,11 @@ def on_message(client, userdata, msg):
 
 
 # --- ARDUINO -> MQTT ---
+
 def serial_reader():
+    last_state = None       
+    last_time_sent = 0      
+    DEBOUNCE_DELAY = 2.0    
 
     while True:
         try:
@@ -40,8 +46,17 @@ def serial_reader():
                 continue
 
             if line in SERIAL_MAP:
-                topic, payload = SERIAL_MAP[line]
-                mqttc.publish(topic, payload, qos=1)
+                topic, current_payload = SERIAL_MAP[line]
+                current_time = time.time()
+
+                if current_payload != last_state:
+                    if (current_time - last_time_sent) > DEBOUNCE_DELAY:
+                        
+                        mqttc.publish(topic, current_payload, qos=1)
+                        print(f"[BRIDGE] state changed {current_payload} on {topic}")
+                        
+                        last_state = current_payload
+                        last_time_sent = current_time
             else:
                 print(f"Error serial_code_parsing: {line}")
         
