@@ -25,9 +25,10 @@ def main():
 
         elif os_name == "Linux":
             commands = [
-                "mosquitto -v",
+                # "killall mosquitto && mosquitto -v",
                 "source .venv/bin/activate && cd Backend && uvicorn backend:app --reload",
                 "source .venv/bin/activate && python3 Model/webcam_handler.py"
+                "source .venv/bin/activate && python3 Arduino/bridge.py"
             ]
             
             for cmd in commands:

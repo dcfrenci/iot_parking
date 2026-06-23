@@ -13,7 +13,8 @@ import kotlinx.serialization.json.Json
 object HttpClientFactory {
 
     //private const val BASE_URL = "https://api.iotparking.com/v1"
-    private const val BASE_URL = "http://10.0.2.2:8000/v1/"
+//    private const val BASE_URL = "http://10.0.2.2:8000/v1/"
+    private const val BASE_URL = "http://192.168.142.125:8000/v1/"
 
     fun create(): HttpClient = HttpClient {
         install(ContentNegotiation) {
