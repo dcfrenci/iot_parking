@@ -3,7 +3,9 @@ import os
 import threading
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ENV_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", ".env"))
+load_dotenv(ENV_PATH)
 
 MQTT_BROKER = os.getenv("MQTT_BROKER", "127.0.0.1")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
