@@ -133,7 +133,7 @@ def cmd_init_parkings():
         {
             "parking_name": "Novi Park",
             "total_slot": 800, "available_slot": 350,
-            "disabled_slot": 10, "available_disabled_slot": 10,
+            "disabled_slot": 10, "available_disabled_slot": 8,
             "price_per_hour": 1.20,
             "lat": 44.651111, "lon": 10.921667,
             "address": "Viale Monte Kosica, 41121 Modena MO, Italy"
@@ -149,7 +149,7 @@ def cmd_init_parkings():
         {
             "parking_name": "Parcheggio Ludovisi",
             "total_slot": 450, "available_slot": 120,
-            "disabled_slot": 8, "available_disabled_slot": 8,
+            "disabled_slot": 8, "available_disabled_slot": 7,
             "price_per_hour": 2.50,
             "lat": 41.905690, "lon": 12.487224,
             "address": "Via Ludovisi, 60, 00187 Roma RM, Italy"
@@ -157,7 +157,7 @@ def cmd_init_parkings():
         {
             "parking_name": "Autosilo Diaz",
             "total_slot": 600, "available_slot": 200,
-            "disabled_slot": 12, "available_disabled_slot": 12,
+            "disabled_slot": 12, "available_disabled_slot": 6,
             "price_per_hour": 3.00,
             "lat": 45.461665, "lon": 9.189520,
             "address": "Piazza Armando Diaz, 6, 20123 Milano MI, Italy"
@@ -178,40 +178,38 @@ def cmd_init_parkings():
 def cmd_create_users():
     print("\n--- Creating Users and Plates ---")
 
-    # AA111AA — normale, pagamento OK → ENTRA
-    print("\n  [AA111AA] Mario Rossi — normale, pagamento OK → ENTRA")
-    id1 = register_user("Mario Rossi", "mario@test.com", "mario123")
-    if id1:
-        add_payment(id1)
-        add_plate(id1, "AA111AA", "Fiat Punto")
-
-    # BB222BB — normale, SENZA pagamento → BLOCCATO
-    print("\n  [BB222BB] Luigi Bianchi — normale, nessun pagamento → BLOCCATO")
-    id2 = register_user("Luigi Bianchi", "luigi@test.com", "luigi123")
-    if id2:
-        add_plate(id2, "BB222BB", "Ford Focus")
-
-    # CC333CC — disabile, pagamento OK → ENTRA posto H
-    print("\n  [CC333CC] Giuseppe Verdi — disabile, pagamento OK → ENTRA posto H")
-    id3 = register_user("Giuseppe Verdi", "giuseppe@test.com", "giuseppe123")
-    if id3:
-        set_disabled(id3)
-        add_payment(id3)
-        add_plate(id3, "CC333CC", "Fiat Panda")
-
-    # DD444DD — Admin, pagamento OK → ENTRA
-    print("\n  [DD444DD] Admin — pagamento OK → ENTRA")
+    # Admin
     id_admin = get_admin_account_id()
     if id_admin:
         add_payment(id_admin)
-        add_plate(id_admin, "DD444DD", "Admin Car")
+        add_plate(id_admin, "AA229DB", "Toyota Corolla")
+        add_plate(id_admin, "CZ889KF", "Nissan GTR R34")
+    
+    # Giuseppe Verdi
+    id = register_user("Giuseppe Verdi", "giuseppe@test.com", "giuseppe123")
+    if id:
+        set_disabled(id)
+        add_payment(id)
+        add_plate(id, "AB123FG", "Fiat Panda")
+    
+    # Luigi Bianchi
+    id = register_user("Luigi Bianchi", "luigi@test.com", "luigi123")
+    if id:
+        add_payment(id)
+        add_plate(id, "AA111AA", "Fiat Punto")
+            
+    # Mario Rossi
+    id = register_user("Mario Rossi", "mario@test.com", "mario123")
+    if id:
+        add_payment(id)
+
 
 def cmd_delete_users():
     print("\n--- Deleting Test Users ---")
     for email, password in [
-        ("mario@test.com",    "mario123"),
-        ("luigi@test.com",    "luigi123"),
-        ("giuseppe@test.com", "giuseppe123"),
+        ("mario@mail.com",    "mario123"),
+        ("luigi@mail.com",    "luigi123"),
+        ("giuseppe@mail.com", "giuseppe123"),
     ]:
         account_id = get_account_id(email, password)
         if account_id:
@@ -241,6 +239,8 @@ def cmd_create_bookings():
     account_id = get_admin_account_id()
     if not account_id: return
 
+    cmd_delete_bookings()
+    
     parkings = get_parkings()
     plates   = get_plates(account_id)
 
@@ -329,7 +329,7 @@ def cmd_create_session():
         data = res.json()
         msg  = f"Success! Session started for plate {free_plate}"
         if data.get("used_disabled_slot"):
-            msg += " [posto disabile]"
+            msg += " [disable slot]"
         print(msg)
     else:
         print(f"Failed to create session: {res.text}")
@@ -431,11 +431,13 @@ def cmd_init_database():
     cmd_create_admin()
     cmd_create_users()
     cmd_create_bookings()
-    print("\n  Riepilogo targhe per i test:")
-    print("  AA111AA → Mario Rossi    | pagamento SI | normale  → ENTRA")
-    print("  BB222BB → Luigi Bianchi  | pagamento NO | normale  → BLOCCATO")
-    print("  CC333CC → Giuseppe Verdi | pagamento SI | disabile → ENTRA posto H")
-    print("  DD444DD → Admin          | pagamento SI | normale  → ENTRA")
+    print("\n  Sumup default database:")
+    print("**User**        | **Email**         | **Password**  | **Cars Plate**    | **Disable**")
+    print(":--------------:|:-----------------:|:-------------:|:-----------------:|:----------:")
+    print("Admin           | admin@gmail.com   | admin         | AA229DB CZ889KF   | No ")
+    print("Giuseppe Verdi  | giuseppe@mail.com | giuseppe123   | AB123FG           | Yes")
+    print("Luigi Bianchi   | luigi@mail.com    | luigi123      | AA111AA           | No ")
+    print("Mario Rossi     | mario@mail.com    | mario123      | /                 | No \n")
     print("\n========== DATABASE INITIALIZATION COMPLETE ==========")
 
 # ==========================================

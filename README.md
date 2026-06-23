@@ -191,5 +191,16 @@ To init the database with a default configuration use this command after launchi
 python3 manage.py init-database
 ```
 
+**User**        | **Email**         | **Password**  | **Cars Plate**    | **Disable**
+:--------------:|:-----------------:|:-------------:|:-----------------:|:----------:
+Admin           | admin@gmail.com   | admin         | AA229DB CZ889KF   | No
+Giuseppe Verdi  | giuseppe@mail.com | giuseppe123   | AB123FG           | Yes
+Luigi Bianchi   | luigi@mail.com    | luigi123      | AA111AA           | No
+Mario Rossi     | mario@mail.com    | mario123      | /                 | No
+
+```bash
+python3 manage.py history-init
+```
+
 ### FastAPI
-To easly see and test all the available API calls that the FastAPI server supports, you could use the *swaggerUI* that could be red at [localhost:8000/docs](localhost:8000/docs).
+To easly see and test all the available API calls that the FastAPI server supports, you could use the *swaggerUI* that could be red at [0.0.0.0:8000/docs](0.0.0.0:8000/docs).
